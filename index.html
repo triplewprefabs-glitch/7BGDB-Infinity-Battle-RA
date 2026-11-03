@@ -1,0 +1,925 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#07111e">
+<title>AR BLASTER</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #050a12;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+#camera {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #101820;
+}
+
+#effects {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pill {
+  background: #03101dcc;
+  border: 1px solid #55dcff66;
+  border-radius: 20px;
+  padding: 9px 12px;
+  font-size: 12px;
+}
+
+#crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 5px black);
+}
+
+#crosshair::before,
+#crosshair::after {
+  content: "";
+  position: absolute;
+  background: white;
+  border-radius: 2px;
+}
+
+#crosshair::before {
+  width: 2px;
+  height: 24px;
+  left: 11px;
+}
+
+#crosshair::after {
+  width: 24px;
+  height: 2px;
+  top: 11px;
+}
+
+button, select {
+  color: white;
+  background: #071a2b;
+  border: 1px solid #55dcff66;
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: bold;
+}
+
+#settingsBtn {
+  position: absolute;
+  top: 60px;
+  right: 12px;
+  pointer-events: auto;
+}
+
+#bottom {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+#fire {
+  min-width: 150px;
+  min-height: 58px;
+  background: linear-gradient(135deg, #087da9, #06415f);
+  border-color: #55dcff;
+  font-size: 17px;
+}
+
+#panel {
+  position: fixed;
+  z-index: 5;
+  top: 110px;
+  right: 10px;
+  bottom: 95px;
+  width: min(370px, calc(100% - 20px));
+  overflow-y: auto;
+  background: #071321f2;
+  border: 1px solid #55dcff55;
+  border-radius: 18px;
+  padding: 16px;
+  display: none;
+}
+
+#panel.open {
+  display: block;
+}
+
+.section {
+  border-top: 1px solid #ffffff22;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+h2 {
+  font-size: 19px;
+  margin-top: 0;
+}
+
+h3 {
+  font-size: 13px;
+  color: #55dcff;
+  text-transform: uppercase;
+}
+
+label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  margin: 12px 0;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #55dcff;
+}
+
+input[type="range"] {
+  width: 135px;
+  accent-color: #55dcff;
+}
+
+#colors {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 2px;
+}
+
+.swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.swatch.selected {
+  outline: 2px solid white;
+  outline-offset: 3px;
+}
+
+#message {
+  position: absolute;
+  top: calc(50% + 38px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #06111dcc;
+  border: 1px solid #55dcff55;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#startScreen {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  background: radial-gradient(circle, #173c55, #050a12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+}
+
+#startCard {
+  max-width: 440px;
+  background: #071321f2;
+  border: 1px solid #55dcff55;
+  border-radius: 20px;
+  padding: 24px;
+}
+
+#startCard button {
+  width: 100%;
+  background: #087da9;
+  margin-top: 10px;
+}
+
+.small {
+  color: #aabccc;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+#toast {
+  position: fixed;
+  z-index: 20;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #071321;
+  border: 1px solid #55dcff55;
+  padding: 12px;
+  border-radius: 12px;
+  display: none;
+  text-align: center;
+  max-width: 90%;
+  font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+
+<video id="camera" autoplay muted playsinline></video>
+<canvas id="effects"></canvas>
+
+<div id="hud">
+
+  <div id="top">
+    <div class="pill">AR BLASTER</div>
+    <div class="pill">ARMA ÚNICA</div>
+  </div>
+
+  <button id="settingsBtn">⚙ Configurações</button>
+
+  <div id="crosshair"></div>
+
+  <div id="message">
+    Aponte a câmera e toque em DISPARAR
+  </div>
+
+  <div id="bottom">
+    <button id="fire">✦ DISPARAR</button>
+  </div>
+
+</div>
+
+<div id="panel">
+
+  <h2>Configurações</h2>
+
+  <div class="section">
+    <h3>Cor dos disparos</h3>
+
+    <div id="colors">
+      <button class="swatch selected" data-color="#36bfff" style="background:#36bfff"></button>
+      <button class="swatch" data-color="#ff4141" style="background:#ff4141"></button>
+      <button class="swatch" data-color="#45e879" style="background:#45e879"></button>
+      <button class="swatch" data-color="#bd70ff" style="background:#bd70ff"></button>
+      <button class="swatch" data-color="#ffe34d" style="background:#ffe34d"></button>
+      <button class="swatch" data-color="#ffffff" style="background:#ffffff"></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Qualidade gráfica</h3>
+
+    <label>
+      <span>Predefinição</span>
+      <select id="graphics">
+        <option value="high">Alta</option>
+        <option value="medium">Média</option>
+        <option value="low">Baixa</option>
+      </select>
+    </label>
+
+    <label>
+      <span>Brilho dos projéteis</span>
+      <input id="glow" type="checkbox" checked>
+    </label>
+
+    <label>
+      <span>Reflexos simulados</span>
+      <input id="reflections" type="checkbox" checked>
+    </label>
+
+    <label>
+      <span>Clarão das explosões</span>
+      <input id="flashes" type="checkbox" checked>
+    </label>
+
+    <label>
+      <span>Rastros luminosos</span>
+      <input id="trails" type="checkbox" checked>
+    </label>
+  </div>
+
+  <div class="section">
+    <h3>Áudio</h3>
+
+    <label>
+      <span>Sons ativados</span>
+      <input id="audioOn" type="checkbox" checked>
+    </label>
+
+    <label>
+      <span>Volume geral</span>
+      <input id="volume" type="range" min="0" max="100" value="70">
+    </label>
+
+    <label>
+      <span>Disparos</span>
+      <input id="shotSound" type="checkbox" checked>
+    </label>
+
+    <label>
+      <span>Explosões</span>
+      <input id="explosionSound" type="checkbox" checked>
+    </label>
+
+    <label>
+      <span>Impactos</span>
+      <input id="impactSound" type="checkbox" checked>
+    </label>
+
+    <label>
+      <span>Sons da interface</span>
+      <input id="uiSound" type="checkbox" checked>
+    </label>
+  </div>
+
+  <div class="section">
+    <p class="small">
+      Os sons são sintetizados no próprio navegador.
+      Os reflexos ambientais reais ainda serão implementados.
+      As configurações gráficas e sonoras são independentes.
+    </p>
+
+    <button id="closeSettings" style="width:100%">
+      Fechar
+    </button>
+  </div>
+
+</div>
+
+<div id="startScreen">
+  <div id="startCard">
+
+    <h1>AR BLASTER</h1>
+
+    <p>
+      Protótipo inicial com câmera, mira,
+      disparos de energia coloridos e efeitos configuráveis.
+    </p>
+
+    <button id="start">
+      INICIAR CÂMERA
+    </button>
+
+    <p class="small">
+      Requer HTTPS e permissão para acessar a câmera.
+      Utilize somente em uma área livre e segura.
+      Não corra nem caminhe olhando apenas para a tela.
+    </p>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(() => {
+
+  const video = document.getElementById("camera");
+  const canvas = document.getElementById("effects");
+  const ctx = canvas.getContext("2d");
+
+  const $ = id => document.getElementById(id);
+
+  let color = "#36bfff";
+  let projectiles = [];
+  let audioCtx = null;
+  let stream = null;
+  let lastShot = 0;
+
+  const settings = {
+    graphics: "high",
+    glow: true,
+    reflections: true,
+    flashes: true,
+    trails: true,
+    audioOn: true,
+    volume: 0.7,
+    shotSound: true,
+    explosionSound: true,
+    impactSound: true,
+    uiSound: true
+  };
+
+  function resize() {
+
+    const dpr = Math.min(
+      window.devicePixelRatio || 1,
+      2
+    );
+
+    canvas.width = innerWidth * dpr;
+    canvas.height = innerHeight * dpr;
+
+    canvas.style.width = innerWidth + "px";
+    canvas.style.height = innerHeight + "px";
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  }
+
+  addEventListener("resize", resize);
+  resize();
+
+  function toast(message) {
+
+    $("toast").textContent = message;
+    $("toast").style.display = "block";
+
+    clearTimeout(toast.timer);
+
+    toast.timer = setTimeout(() => {
+      $("toast").style.display = "none";
+    }, 2400);
+
+  }
+
+  function ensureAudio() {
+
+    if (!audioCtx) {
+
+      const AC =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+      if (AC) audioCtx = new AC();
+
+    }
+
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+  }
+
+  function tone(freq, type, duration, volume, slide = 0) {
+
+    if (!settings.audioOn || !audioCtx) return;
+
+    const now = audioCtx.currentTime;
+
+    const oscillator = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    oscillator.type = type;
+
+    oscillator.frequency.setValueAtTime(freq, now);
+
+    if (slide) {
+      oscillator.frequency.exponentialRampToValueAtTime(
+        Math.max(30, freq + slide),
+        now + duration
+      );
+    }
+
+    gain.gain.setValueAtTime(
+      Math.max(0.0001, volume * settings.volume),
+      now
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      now + duration
+    );
+
+    oscillator.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+
+  }
+
+  function noise(duration, volume) {
+
+    if (!settings.audioOn || !audioCtx) return;
+
+    const length = Math.floor(
+      audioCtx.sampleRate * duration
+    );
+
+    const buffer = audioCtx.createBuffer(
+      1,
+      length,
+      audioCtx.sampleRate
+    );
+
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < length; i++) {
+      data[i] =
+        (Math.random() * 2 - 1) *
+        (1 - i / length);
+    }
+
+    const source = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+
+    source.buffer = buffer;
+
+    gain.gain.value =
+      volume * settings.volume;
+
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    source.start();
+
+  }
+
+  // Efeito sonoro original de disparo sci-fi.
+  function playShot() {
+
+    if (!settings.shotSound) return;
+
+    tone(520, "sawtooth", 0.16, 0.12, -390);
+    tone(115, "triangle", 0.12, 0.18, -45);
+    noise(0.055, 0.045);
+
+  }
+
+  function playExplosion() {
+
+    if (!settings.explosionSound) return;
+
+    tone(100, "sawtooth", 0.34, 0.2, -65);
+    noise(0.2, 0.13);
+
+  }
+
+  function playImpact() {
+
+    if (!settings.impactSound) return;
+
+    tone(260, "triangle", 0.09, 0.09, -160);
+
+  }
+
+  function fire() {
+
+    ensureAudio();
+
+    const now = performance.now();
+
+    if (now - lastShot < 240) return;
+
+    lastShot = now;
+
+    playShot();
+
+    projectiles.push({
+
+      x: innerWidth / 2,
+      y: innerHeight / 2 + 12,
+
+      radius: 5,
+      life: 1,
+      color: color,
+      finished: false
+
+    });
+
+    if (projectiles.length > 10) {
+      projectiles.shift();
+    }
+
+  }
+
+  function render() {
+
+    ctx.clearRect(
+      0,
+      0,
+      innerWidth,
+      innerHeight
+    );
+
+    const quality =
+      settings.graphics === "low" ? 0 :
+      settings.graphics === "medium" ? 1 : 2;
+
+    for (const p of projectiles) {
+
+      if (p.life <= 0) continue;
+
+      p.life -= 0.018;
+
+      p.radius += quality === 0 ? 1.1 : 1.6;
+
+      p.y -= quality === 0 ? 5 : 7;
+
+      const alpha = Math.max(0, p.life);
+
+      // Rastro luminoso.
+      if (settings.trails && quality > 0) {
+
+        ctx.globalAlpha = alpha * 0.55;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = quality === 2 ? 4 : 2;
+
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y + 22);
+        ctx.lineTo(p.x, p.y + 70);
+        ctx.stroke();
+
+      }
+
+      // Halo luminoso.
+      if (settings.glow && quality > 0) {
+
+        ctx.globalAlpha =
+          alpha * (quality === 2 ? 0.24 : 0.14);
+
+        ctx.fillStyle = p.color;
+
+        ctx.beginPath();
+
+        ctx.arc(
+          p.x,
+          p.y,
+          p.radius * (quality === 2 ? 4 : 2.5),
+          0,
+          Math.PI * 2
+        );
+
+        ctx.fill();
+
+      }
+
+      // Núcleo do projétil.
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+
+      ctx.beginPath();
+      ctx.arc(
+        p.x,
+        p.y,
+        p.radius,
+        0,
+        Math.PI * 2
+      );
+
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+
+      // Efeito final.
+      if (p.life <= 0 && !p.finished) {
+
+        p.finished = true;
+
+        if (settings.flashes && quality > 0) {
+
+          ctx.globalAlpha = 0.28;
+          ctx.fillStyle = p.color;
+
+          ctx.beginPath();
+
+          ctx.arc(
+            p.x,
+            p.y,
+            quality === 2 ? 30 : 18,
+            0,
+            Math.PI * 2
+          );
+
+          ctx.fill();
+
+          ctx.globalAlpha = 1;
+
+          playExplosion();
+
+        } else {
+
+          playImpact();
+
+        }
+
+      }
+
+    }
+
+    projectiles = projectiles.filter(
+      p => p.life > 0 || !p.finished
+    );
+
+    requestAnimationFrame(render);
+
+  }
+
+  render();
+
+  // Inicialização da câmera.
+  $("start").addEventListener("click", async () => {
+
+    ensureAudio();
+
+    try {
+
+      if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+
+        toast(
+          "Câmera indisponível. Abra a página usando HTTPS."
+        );
+
+        return;
+
+      }
+
+      stream =
+        await navigator.mediaDevices.getUserMedia({
+
+          video: {
+            facingMode: {
+              ideal: "environment"
+            }
+          },
+
+          audio: false
+
+        });
+
+      video.srcObject = stream;
+
+      await video.play();
+
+      $("startScreen").style.display = "none";
+
+      toast("Câmera iniciada!");
+
+    } catch (error) {
+
+      toast(
+        "Não foi possível abrir a câmera. Verifique as permissões."
+      );
+
+    }
+
+  });
+
+  $("fire").addEventListener("click", fire);
+
+  $("settingsBtn").addEventListener("click", () => {
+    $("panel").classList.toggle("open");
+  });
+
+  $("closeSettings").addEventListener("click", () => {
+    $("panel").classList.remove("open");
+  });
+
+  // Seleção de cores.
+  document.querySelectorAll(".swatch").forEach(button => {
+
+    button.addEventListener("click", () => {
+
+      color = button.dataset.color;
+
+      document.querySelectorAll(".swatch").forEach(item => {
+
+        item.classList.toggle(
+          "selected",
+          item === button
+        );
+
+      });
+
+      if (settings.uiSound) {
+
+        ensureAudio();
+
+        tone(600, "sine", 0.05, 0.04);
+
+      }
+
+    });
+
+  });
+
+  // Qualidade gráfica.
+  $("graphics").addEventListener("change", event => {
+
+    settings.graphics = event.target.value;
+
+  });
+
+  // Controles individuais.
+  [
+    "glow",
+    "reflections",
+    "flashes",
+    "trails",
+    "audioOn",
+    "shotSound",
+    "explosionSound",
+    "impactSound",
+    "uiSound"
+
+  ].forEach(id => {
+
+    $(id).addEventListener("change", event => {
+
+      settings[id] = event.target.checked;
+
+      if (
+        id === "reflections" &&
+        event.target.checked
+      ) {
+
+        toast(
+          "Reflexos ambientais serão implementados na próxima etapa."
+        );
+
+      }
+
+    });
+
+  });
+
+  // Volume geral.
+  $("volume").addEventListener("input", event => {
+
+    settings.volume =
+      Number(event.target.value) / 100;
+
+  });
+
+  // Libera a câmera quando a página é encerrada.
+  window.addEventListener("pagehide", () => {
+
+    if (stream) {
+
+      stream.getTracks().forEach(track => {
+        track.stop();
+      });
+
+    }
+
+  });
+
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+
+      if (
+        document.hidden &&
+        audioCtx &&
+        audioCtx.state === "running"
+      ) {
+
+        audioCtx.suspend();
+
+      }
+
+    }
+  );
+
+})();
+</script>
+
+</body>
+</html>
