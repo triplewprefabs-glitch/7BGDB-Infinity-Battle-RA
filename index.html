@@ -165,10 +165,6 @@ button:disabled {
   background: #075b88;
 }
 
-#reloadButton {
-  background: #35445b;
-}
-
 #zoomButton {
   background: #303030;
 }
@@ -330,7 +326,6 @@ button:disabled {
     <div class="panel" id="playerStats">
       HP: <b id="hpValue">100</b><br>
       Escudo: <b id="shieldValue">100%</b><br>
-      Munição: <b id="ammoValue">20/20</b><br>
       Pontos: <b id="scoreValue">0</b>
     </div>
 
@@ -349,7 +344,6 @@ button:disabled {
 
     <div id="controls">
       <button id="shieldButton">🛡 Escudo</button>
-      <button id="reloadButton">↻ Recarga</button>
       <button id="zoomButton">Zoom: OFF</button>
       <button id="soundButton">Som: ON</button>
       <button id="leaveButton">Sair</button>
@@ -433,10 +427,6 @@ let playerHP = 100;
 let shieldEnergy = 100;
 let shieldActive = false;
 
-let ammunition = 20;
-const MAX_AMMUNITION = 20;
-
-let reloading = false;
 let soundEnabled = true;
 
 let playerScore = 0;
@@ -503,9 +493,6 @@ function updateHUD() {
 
   $("shieldValue").textContent =
     Math.round(shieldEnergy) + "%";
-
-  $("ammoValue").textContent =
-    ammunition + "/" + MAX_AMMUNITION;
 
   $("scoreValue").textContent = playerScore;
 
@@ -876,17 +863,6 @@ function shoot() {
 
   if (playerHP <= 0) return;
 
-  if (reloading) return;
-
-  if (ammunition <= 0) {
-
-    showMessage("Sem munição! Recarregue.");
-
-    return;
-  }
-
-  ammunition--;
-
   playShotSound();
 
   const color =
@@ -919,45 +895,6 @@ $("fireButton").addEventListener(
 
     shoot();
   }
-);
-
-
-// ========================================
-// RECARREGAMENTO
-// ========================================
-
-function reloadWeapon() {
-
-  if (!gameActive) return;
-
-  if (reloading) return;
-
-  if (ammunition >= MAX_AMMUNITION) return;
-
-  reloading = true;
-
-  showMessage("Recarregando arma...");
-
-  $("reloadButton").disabled = true;
-
-  setTimeout(() => {
-
-    ammunition = MAX_AMMUNITION;
-
-    reloading = false;
-
-    $("reloadButton").disabled = false;
-
-    showMessage("Arma recarregada!");
-
-    updateHUD();
-
-  }, 1500);
-}
-
-$("reloadButton").addEventListener(
-  "click",
-  reloadWeapon
 );
 
 
@@ -2764,7 +2701,6 @@ async function launchMultiplayerMatch(mode, hostStarting) {
 
     playerHP = 100;
     playerShield = 100;
-    playerAmmo = 30;
     playerScore = 0;
     playerEliminations = 0;
 
@@ -3464,7 +3400,6 @@ function handlePlayerRespawn() {
 
         playerHP = 100;
         playerShield = 100;
-        playerAmmo = 30;
 
         shieldCooldownUntil = 0;
         localCaptureZone = null;
@@ -3542,9 +3477,6 @@ function updateFinalHUD() {
             Math.max(0, Math.ceil(playerShield));
     }
 
-    if ($("ammoValue")) {
-        $("ammoValue").textContent = playerAmmo;
-    }
 
     if ($("scoreValue")) {
         $("scoreValue").textContent = playerScore;
