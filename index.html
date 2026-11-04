@@ -1436,7 +1436,7 @@ function updateProjectiles() {
 
     // O disparo do jogador chega ao alvo.
     if (
-      shot.owner === "player" &&
+      (shot.owner === "player" || shot.owner === playerId) &&
       progress >= 1
     ) {
 
@@ -3588,6 +3588,20 @@ $("leaveButton").addEventListener("click", () => {
     showMessage("Você saiu da partida.");
 });
 
+
+// Evita duplicação de projéteis na rede e mantém a colisão do treino.
+const baseShootWithoutNetwork = previousShoot;
+shoot = function() {
+    const before = shots.length;
+    baseShootWithoutNetwork();
+    if (shots.length <= before) return;
+    const shot = shots[shots.length - 1];
+    shot.owner = playerId;
+    shot.networkId = playerId + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+    playEnhancedShotSound();
+    if (multiplayerActive) sendToHost({ type: "projectile", shot: shot });
+};
+
 // Desliga o zoom durante o jogo.
 function disableGameplayZoom() {
     const video = $("camera");
@@ -3856,8 +3870,11 @@ handleNetworkMessage = function(data, conn) {
     }
     if (data.type === "projectile") {
         if (data.shot) {
-            shots.push(Object.assign({}, data.shot, { createdAt: performance.now() }));
-            if (isRoomHost) sendToAll({ type: "projectile", shot: data.shot });
+            const incomingShot = data.shot;
+            const duplicate = incomingShot.networkId &&
+                shots.some(existing => existing.networkId === incomingShot.networkId);
+            if (!duplicate) shots.push(Object.assign({}, incomingShot, { createdAt: performance.now() }));
+            if (isRoomHost) sendToAll({ type: "projectile", shot: incomingShot });
         }
         return;
     }
