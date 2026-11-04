@@ -1090,10 +1090,6 @@ window.addEventListener("keydown", event => {
     shoot();
   }
 
-  if (event.key.toLowerCase() === "r") {
-
-    reloadWeapon();
-  }
 });
 
 
@@ -1766,8 +1762,6 @@ async function startLocalTraining() {
   shieldActive = false;
 
   shieldBrokenUntil = 0;
-
-  ammunition = MAX_AMMUNITION;
 
   playerScore = 0;
 
