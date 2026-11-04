@@ -2371,7 +2371,7 @@ let countdownValue = 5;
 let networkReady = false;
 let lastNetworkUpdate = 0;
 
-let playerScore = 0;
+playerScore = 0;
 let playerEliminations = 0;
 
 const NETWORK_UPDATE_INTERVAL = 100;
@@ -3573,7 +3573,9 @@ $("leaveButton").addEventListener("click", () => {
     players = [];
 
     $("camera").srcObject = null;
+    $("menu").classList.remove("hidden");
     $("menu").style.display = "flex";
+    stopQRScanner();
 
     if ($("captureControls")) {
         $("captureControls").style.display = "none";
@@ -3653,6 +3655,443 @@ document.addEventListener("touchend", event => {
 
     lastTouchEnd = now;
 }, { passive: false });
+
+
+/* ===== Correções integradas RA Combat ===== */
+var playerShield = 100;
+var playerAmmo = MAX_AMMUNITION;
+let shieldTickAt = performance.now();
+let qrScannerStream = null;
+let qrScannerActive = false;
+let qrScannerFrame = 0;
+
+function ensureAudio() { return getAudioContext(); }
+
+function updateShield(deltaSeconds) {
+    const now = performance.now();
+    const dt = Number.isFinite(deltaSeconds)
+        ? Math.max(0, Math.min(deltaSeconds, 0.1))
+        : Math.max(0, Math.min((now - shieldTickAt) / 1000, 0.1));
+    shieldTickAt = now;
+
+    if (shieldActive && playerHP > 0 && shieldEnergy > 0) {
+        shieldEnergy = Math.max(0, shieldEnergy - 10 * dt);
+        if (shieldEnergy <= 0) {
+            shieldActive = false;
+            shieldBrokenUntil = Date.now() + 60000;
+            showMessage("ESCUDO DESTRUÍDO! Recuperação em 60 segundos.");
+            playShieldBreakSound();
+        }
+    } else if (!shieldActive && Date.now() >= shieldBrokenUntil && shieldEnergy < 100) {
+        shieldEnergy = Math.min(100, shieldEnergy + 5 * dt);
+    }
+    playerShield = shieldEnergy;
+    playerAmmo = ammunition;
+    updateHUD();
+}
+
+receiveDamage = function(amount, incomingDirection = "front") {
+    if (!gameActive || playerHP <= 0) return;
+    const damage = Math.max(0, Number(amount) || 0);
+    if (shieldActive && incomingDirection === "front" && shieldEnergy > 0) {
+        const absorbed = Math.min(shieldEnergy, damage);
+        shieldEnergy -= absorbed;
+        const remaining = damage - absorbed;
+        showShieldImpact();
+        if (shieldEnergy <= 0) {
+            shieldEnergy = 0;
+            shieldActive = false;
+            shieldBrokenUntil = Date.now() + 60000;
+            showMessage("ESCUDO DESTRUÍDO! Recuperação em 60 segundos.");
+            playShieldBreakSound();
+        }
+        if (remaining > 0) playerHP = Math.max(0, playerHP - remaining);
+    } else {
+        playerHP = Math.max(0, playerHP - damage);
+        playImpactSound();
+    }
+    playerShield = shieldEnergy;
+    if (playerHP <= 0) {
+        shieldActive = false;
+        showMessage("VOCÊ FOI ELIMINADO!");
+        if (multiplayerActive) handlePlayerRespawn();
+    }
+    updateHUD();
+};
+
+checkTrainingShotCollision = function(shot) {
+    if (shot.owner !== "player" && shot.owner !== playerId) return false;
+    if (!trainingRobot || !trainingRobot.alive) return false;
+    if (Math.hypot(shot.targetX - trainingRobot.x, shot.targetY - trainingRobot.y) < 0.20) {
+        damageTrainingRobot(25);
+        return true;
+    }
+    return false;
+};
+
+playEnhancedShotSound = function() {
+    if (!soundEnabled) return;
+    const audio = ensureAudio();
+    if (!audio) return;
+    const now = audio.currentTime;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    const filter = audio.createBiquadFilter();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(1450, now);
+    osc.frequency.exponentialRampToValueAtTime(230, now + 0.24);
+    filter.type = "highpass";
+    filter.frequency.setValueAtTime(500, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.27);
+    osc.connect(filter); filter.connect(gain); gain.connect(audio.destination);
+    osc.start(now); osc.stop(now + 0.28);
+};
+
+updateHUD = function() {
+    $("hpValue").textContent = Math.max(0, Math.round(playerHP));
+    $("shieldValue").textContent = Math.round(shieldEnergy) + "%";
+    $("ammoValue").textContent = ammunition + "/" + MAX_AMMUNITION;
+    $("scoreValue").textContent = playerScore;
+    $("shieldEffect").classList.toggle("active", shieldActive);
+    playerShield = shieldEnergy;
+    playerAmmo = ammunition;
+};
+updateFinalHUD = function() { updateHUD(); };
+
+async function startLocalTrainingFixed() {
+    if (gameActive) return;
+    playerName = $("playerName").value.trim() || "Jogador";
+    playerTeam = getSelectedTeam();
+    gameMode = "training";
+    const ready = await activateCamera();
+    if (!ready) return;
+
+    if (peer) { try { peer.destroy(); } catch (_) {} peer = null; }
+    multiplayerActive = false; networkReady = false; roomStarted = false;
+    isRoomHost = false; localCaptureZone = null;
+    playerHP = 100; shieldEnergy = 100; playerShield = 100;
+    shieldActive = false; shieldBrokenUntil = 0; shieldTickAt = performance.now();
+    ammunition = MAX_AMMUNITION; playerAmmo = ammunition; reloading = false;
+    playerScore = 0; trainingHits = 0; shots = []; effects = [];
+    trainingRobot = null; clearTimeout(robotRespawnTimer);
+
+    gameActive = true;
+    $("menu").classList.add("hidden");
+    $("menu").style.display = "none";
+    $("gameStatus").textContent = "RA Combat • TREINO";
+    updateModeInterface();
+    createTrainingRobot();
+    updateHUD();
+    previousTrainingFrame = performance.now();
+    requestAnimationFrame(trainingUpdate);
+    showMessage("Treino iniciado! Acerte a esfera robótica.");
+}
+
+const startButtonOldFinal = $("startButton");
+if (startButtonOldFinal) {
+    const startButtonFinal = startButtonOldFinal.cloneNode(true);
+    startButtonOldFinal.replaceWith(startButtonFinal);
+    startButtonFinal.textContent = "Iniciar treino local";
+    startButtonFinal.addEventListener("click", () => {
+        if (getSelectedMode() !== "training") {
+            showMessage("Para Duelo ou Dominação, crie ou entre em uma sala multiplayer.");
+            return;
+        }
+        startLocalTrainingFixed();
+    });
+}
+
+launchMultiplayerMatch = async function(mode, hostStarting) {
+    if (roomStarted) return;
+    if (!multiplayerActive || !networkReady) {
+        showMessage("Aguarde a conexão da sala antes de iniciar.");
+        return;
+    }
+    roomStarted = true;
+    gameMode = mode || getSelectedMode();
+    playerName = $("playerName").value.trim() || "Jogador";
+    playerTeam = getSelectedTeam();
+
+    const ready = await activateCamera();
+    if (!ready) { roomStarted = false; return; }
+
+    playerHP = 100; shieldEnergy = 100; playerShield = 100;
+    shieldActive = false; shieldBrokenUntil = 0; shieldTickAt = performance.now();
+    ammunition = MAX_AMMUNITION; playerAmmo = ammunition;
+    playerScore = 0; shots = []; effects = []; trainingRobot = null;
+
+    if (gameMode === "domination") initializeDominationMode();
+    else {
+        dominationActive = false;
+        if ($("captureControls")) $("captureControls").style.display = "none";
+        if ($("dominationScoreboard")) $("dominationScoreboard").style.display = "none";
+    }
+
+    $("menu").classList.add("hidden");
+    $("menu").style.display = "none";
+    updateModeInterface();
+    updateHUD();
+    await runCountdown();
+    gameActive = true;
+    multiplayerActive = true;
+    if (gameMode === "training") createTrainingRobot();
+    startMultiplayerGameLoop();
+    showMessage("PARTIDA INICIADA!");
+};
+
+const oldHandleNetworkMessageFinal = handleNetworkMessage;
+handleNetworkMessage = function(data, conn) {
+    if (!data || !data.type) return;
+    if (data.type === "playerState" && isRoomHost) {
+        const incoming = data.player;
+        if (incoming && incoming.id) {
+            const existing = players.find(p => p.id === incoming.id);
+            if (existing) Object.assign(existing, incoming);
+            else addPlayerToRoom(incoming);
+            sendToAll({ type: "playerState", player: incoming });
+        }
+        return;
+    }
+    if (data.type === "projectile") {
+        if (data.shot) {
+            shots.push(Object.assign({}, data.shot, { createdAt: performance.now() }));
+            if (isRoomHost) sendToAll({ type: "projectile", shot: data.shot });
+        }
+        return;
+    }
+    oldHandleNetworkMessageFinal(data, conn);
+};
+
+trainingDraw = function() {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    if (gameActive) {
+        if (gameMode === "training") drawTrainingRobot();
+        if (gameMode === "domination") drawDominationCrystals();
+        drawProjectiles();
+        drawEffects();
+    }
+    requestAnimationFrame(trainingDraw);
+};
+
+const shieldButtonOldFinal = $("shieldButton");
+if (shieldButtonOldFinal) {
+    const shieldButtonNewFinal = shieldButtonOldFinal.cloneNode(true);
+    shieldButtonOldFinal.replaceWith(shieldButtonNewFinal);
+    shieldButtonNewFinal.addEventListener("click", () => {
+        if (!gameActive || playerHP <= 0) return;
+        if (Date.now() < shieldBrokenUntil) { showMessage("Escudo em recuperação!"); return; }
+        if (shieldEnergy <= 0) { showMessage("Escudo descarregado!"); return; }
+        shieldActive = !shieldActive;
+        shieldTickAt = performance.now();
+        showMessage(shieldActive ? "Escudo ativado!" : "Escudo desativado!");
+        updateHUD();
+    });
+};
+
+function loadQRCodeLibrary() {
+    return new Promise((resolve, reject) => {
+        if (window.QRCode) return resolve();
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+        script.onload = () => window.QRCode ? resolve() : reject(new Error("Biblioteca QR indisponível."));
+        script.onerror = () => reject(new Error("Não foi possível carregar o gerador de QR Code."));
+        document.head.appendChild(script);
+    });
+}
+
+async function showRoomQRCode(roomId) {
+    const info = $("roomInfo");
+    info.innerHTML = "";
+    const heading = document.createElement("div");
+    heading.innerHTML = "<strong>Código da sala:</strong>";
+    const idText = document.createElement("div");
+    idText.textContent = roomId;
+    idText.style.cssText = "font-size:11px;overflow-wrap:anywhere;margin:5px 0;";
+    const qrBox = document.createElement("div");
+    qrBox.style.cssText = "display:flex;justify-content:center;background:white;padding:10px;border-radius:8px;width:max-content;margin:8px auto;";
+    const copyButton = document.createElement("button");
+    copyButton.textContent = "Copiar ID";
+    copyButton.onclick = async () => {
+        try { await navigator.clipboard.writeText(roomId); showMessage("ID copiado!"); }
+        catch (_) { $("roomIdInput").value = roomId; showMessage("ID colocado no campo para copiar."); }
+    };
+    const scanButton = document.createElement("button");
+    scanButton.textContent = "Ler QR Code";
+    scanButton.style.marginLeft = "6px";
+    scanButton.onclick = startQRScanner;
+    info.append(heading, idText, qrBox, copyButton, scanButton);
+    try {
+        await loadQRCodeLibrary();
+        new QRCode(qrBox, { text: roomId, width: 160, height: 160, colorDark: "#07101c", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+    } catch (_) {
+        const note = document.createElement("div");
+        note.textContent = "QR indisponível. Compartilhe o ID acima.";
+        info.appendChild(note);
+    }
+}
+
+function stopQRScanner() {
+    qrScannerActive = false;
+    if (qrScannerFrame) cancelAnimationFrame(qrScannerFrame);
+    qrScannerFrame = 0;
+    if (qrScannerStream) {
+        qrScannerStream.getTracks().forEach(track => track.stop());
+        qrScannerStream = null;
+    }
+    const layer = $("qrScannerLayer");
+    if (layer) layer.remove();
+}
+
+async function startQRScanner() {
+    if (!("BarcodeDetector" in window)) {
+        showMessage("Leitor automático não disponível neste navegador. Cole o ID manualmente.");
+        $("roomIdInput").focus();
+        return;
+    }
+    try {
+        stopQRScanner();
+        const layer = document.createElement("div");
+        layer.id = "qrScannerLayer";
+        layer.style.cssText = "position:fixed;inset:0;z-index:1000;background:#000e;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;";
+        layer.innerHTML = '<div style="color:white;margin-bottom:12px;font-weight:bold">Aponte a câmera para o QR Code da sala</div><video id="qrScanVideo" autoplay playsinline style="width:min(90vw,420px);border:2px solid #42baff;border-radius:12px"></video><button id="qrScanClose" style="margin-top:14px">Cancelar leitura</button>';
+        document.body.appendChild(layer);
+        $("qrScanClose").onclick = stopQRScanner;
+        qrScannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        const video = $("qrScanVideo");
+        video.srcObject = qrScannerStream;
+        await video.play();
+        const detector = new BarcodeDetector({ formats: ["qr_code"] });
+        qrScannerActive = true;
+        const scanFrame = async () => {
+            if (!qrScannerActive) return;
+            if (video.readyState >= 2) {
+                try {
+                    const codes = await detector.detect(video);
+                    if (codes.length && codes[0].rawValue) {
+                        $("roomIdInput").value = codes[0].rawValue.trim();
+                        stopQRScanner();
+                        showMessage("Código lido! Toque em Entrar na sala.");
+                        return;
+                    }
+                } catch (_) {}
+            }
+            if (qrScannerActive) qrScannerFrame = requestAnimationFrame(scanFrame);
+        };
+        scanFrame();
+    } catch (error) {
+        stopQRScanner();
+        console.error(error);
+        showMessage("Não foi possível abrir a câmera para ler o QR.");
+    }
+}
+
+createMultiplayerRoom = async function() {
+    try {
+        if (peer) { try { peer.destroy(); } catch (_) {} peer = null; }
+        showMessage("Criando sala...");
+        await loadPeerJS();
+        peer = new Peer();
+        peer.on("open", async id => {
+            isRoomHost = true;
+            multiplayerActive = true;
+            networkReady = true;
+            roomStarted = false;
+            players = [];
+            playerName = $("playerName").value.trim() || "Jogador";
+            playerTeam = getSelectedTeam();
+            addPlayerToRoom(getPlayerData());
+            await showRoomQRCode(id);
+            createHostStartButton();
+            showMessage("Sala criada! Compartilhe o QR Code ou o ID.");
+        });
+        peer.on("connection", conn => {
+            connections.push(conn);
+            conn.on("data", data => handleNetworkMessage(data, conn));
+            conn.on("close", () => {
+                connections = connections.filter(c => c !== conn);
+                const remoteId = conn.metadata && conn.metadata.playerId;
+                removePlayerFromRoom(remoteId);
+                sendToAll({ type: "playerLeft", id: remoteId });
+            });
+        });
+        peer.on("error", error => {
+            console.error("PeerJS:", error);
+            showMessage("Falha ao criar sala: " + (error.type || error.message || "erro de conexão"));
+        });
+    } catch (error) {
+        console.error(error);
+        showMessage(error.message || "Não foi possível criar a sala.");
+    }
+};
+
+joinMultiplayerRoom = async function() {
+    try {
+        let roomId = $("roomIdInput").value.trim().replace(/^peerjs:/i, "");
+        if (!roomId) { showMessage("Digite ou leia o QR Code da sala."); return; }
+        showMessage("Conectando à sala...");
+        await loadPeerJS();
+        if (peer) { try { peer.destroy(); } catch (_) {} }
+        peer = new Peer();
+        peer.on("open", () => {
+            hostConnection = peer.connect(roomId, { reliable: true, metadata: { playerId: playerId } });
+            hostConnection.on("open", () => {
+                multiplayerActive = true;
+                networkReady = true;
+                isRoomHost = false;
+                playerName = $("playerName").value.trim() || "Jogador";
+                playerTeam = getSelectedTeam();
+                hostConnection.send({ type: "hello", player: getPlayerData() });
+                showMessage("Conectado! Aguarde o anfitrião iniciar.");
+            });
+            hostConnection.on("data", data => handleNetworkMessage(data, hostConnection));
+            hostConnection.on("error", error => {
+                console.error(error);
+                showMessage("Falha na conexão com a sala.");
+            });
+            hostConnection.on("close", () => {
+                multiplayerActive = false;
+                networkReady = false;
+                showMessage("Conexão encerrada.");
+            });
+        });
+        peer.on("error", error => {
+            console.error("PeerJS:", error);
+            showMessage("Não foi possível entrar: " + (error.type || error.message || "verifique o ID"));
+        });
+    } catch (error) {
+        console.error(error);
+        showMessage(error.message || "Erro ao entrar na sala.");
+    }
+};
+
+function createHostStartButton() {
+    let button = $("hostStartButton");
+    if (!button) {
+        button = document.createElement("button");
+        button.id = "hostStartButton";
+        button.textContent = "INICIAR PARTIDA MULTIPLAYER";
+        button.style.cssText = "width:100%;margin-top:10px;padding:14px;background:#168cff;color:white;border:0;border-radius:10px;font-weight:bold;";
+        $("roomInfo").appendChild(button);
+    }
+    button.onclick = () => {
+        if (!isRoomHost || !networkReady) { showMessage("A sala ainda não está pronta."); return; }
+        const mode = getSelectedMode();
+        sendToAll({ type: "startMatch", mode: mode });
+        launchMultiplayerMatch(mode, true);
+    };
+}
+
+function disableGameplayZoom() {
+    const video = $("camera");
+    if (video) { video.style.transform = "none"; video.style.objectFit = "cover"; }
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) viewport.setAttribute("content",
+        "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
+}
+
+window.addEventListener("beforeunload", stopQRScanner);
 
 // Inicialização final.
 if (document.readyState === "loading") {
