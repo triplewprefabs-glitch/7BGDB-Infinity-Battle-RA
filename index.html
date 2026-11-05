@@ -142,19 +142,33 @@ button:disabled {
   right: 8px;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 7px;
+  pointer-events: none;
 }
 
 #controls {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  max-width: 78%;
+  max-width: 38%;
+  pointer-events: auto;
+}
+
+#combatControls {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  pointer-events: auto;
 }
 
 #fireButton {
-  min-width: 82px;
+  min-width: 112px;
   min-height: 58px;
   background: #a91e2a;
   border-color: #ff7777;
@@ -162,6 +176,8 @@ button:disabled {
 }
 
 #shieldButton {
+  min-width: 112px;
+  min-height: 48px;
   background: #075b88;
 }
 
@@ -343,13 +359,15 @@ button:disabled {
   <div id="bottomHUD">
 
     <div id="controls">
-      <button id="shieldButton">🛡 Escudo</button>
       <button id="zoomButton">Zoom: OFF</button>
       <button id="soundButton">Som: ON</button>
       <button id="leaveButton">Sair</button>
     </div>
 
-    <button id="fireButton">DISPARAR</button>
+    <div id="combatControls">
+      <button id="fireButton">DISPARAR</button>
+      <button id="shieldButton">🛡 Escudo</button>
+    </div>
 
   </div>
 
