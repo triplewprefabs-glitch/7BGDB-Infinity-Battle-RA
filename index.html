@@ -74,11 +74,12 @@ body.xr-calibrating #hitFlash{display:none!important}
 body.xr-calibrating #hud #calibrationBtn{display:block!important;top:calc(env(safe-area-inset-top) + 42px);right:8px;left:auto;max-width:calc(100vw - 120px)}
 
 body.marker-display #startScreen,body.marker-display #hud,body.marker-display #settings,body.marker-display #trainingPanel,body.marker-display #trainingStats,body.marker-display #hitFlash{display:none!important}
-/* Mantém a interface estável durante o DOM Overlay do WebXR no Chrome Android */
-body.xr-session-active{ -webkit-text-size-adjust:100%!important;text-size-adjust:100%!important; }
-body.xr-session-active #hud,body.xr-session-active #calibrationPanel{font-size:16px;-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
-body.xr-session-active button,body.xr-session-active input,body.xr-session-active select{font-size:16px;max-width:100%;}
-body.xr-session-active #xrCanvas{max-width:100vw;max-height:100vh}
+/* O body e o próprio DOM Overlay precisam permanecer transparentes no AR.
+   Sem isso, o fundo escuro da página pode cobrir a imagem da câmera no Chrome. */
+html.xr-session-active,body.xr-session-active{background:transparent!important}
+body.xr-session-active: xr-overlay{background:transparent!important}
+body.xr-session-active #hud,body.xr-session-active #calibrationPanel{ -webkit-text-size-adjust:100%;text-size-adjust:100%; }
+body.xr-session-active #xrCanvas{background:transparent!important}
 body.marker-display #calibrationPanel{display:flex!important;position:fixed;inset:0;padding:0;background:#fff;z-index:99;align-items:center;justify-content:center}
 body.marker-display #calibrationPanel .calCard{width:100vw;height:100dvh;max-width:none;max-height:none;border:0;border-radius:0;box-shadow:none;background:#fff;color:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px;overflow:hidden}
 body.marker-display #calibrationPanel h2{display:block;color:#06111e;font-size:clamp(16px,4vw,24px)}
@@ -222,18 +223,8 @@ addEventListener('contextmenu',e=>e.preventDefault());for(const ev of ['gestures
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
 let renderer,scene,camera,session,refSpace,viewerSpace,hitSource,reticle,drone,core,currentHitPose=null,placed=false,hp=3,lastDroneShot=0,calibrationMode=false;
-function normalizeXRUi(){
- const vv=window.visualViewport;
- const scale=vv&&Number.isFinite(vv.scale)?vv.scale:1;
- if(scale>1.05){
-  const correction=Math.max(.5,Math.min(1,1/scale));
-  document.documentElement.style.zoom=String(correction);
- }else{
-  document.documentElement.style.zoom="1";
- }
-}
-function activateXRUi(){document.body.classList.add("xr-session-active");normalizeXRUi();if(window.visualViewport){window.visualViewport.addEventListener("resize",normalizeXRUi);window.visualViewport.addEventListener("scroll",normalizeXRUi);}}
-function deactivateXRUi(){document.body.classList.remove("xr-session-active");document.documentElement.style.zoom="1";if(window.visualViewport){window.visualViewport.removeEventListener("resize",normalizeXRUi);window.visualViewport.removeEventListener("scroll",normalizeXRUi);}}
+function activateXRUi(){document.documentElement.classList.add("xr-session-active");document.body.classList.add("xr-session-active");}
+function deactivateXRUi(){document.documentElement.classList.remove("xr-session-active");document.body.classList.remove("xr-session-active");document.documentElement.style.zoom="";}
 let markerWorld=new THREE.Matrix4(),markerWorldInverse=new THREE.Matrix4(),markerTracked=false,remoteSpatialShots=[],markerDiagnosticAt=0;
 window.energyOpsSpatialReady=false;
 const trainCfg=window.trainCfg={sphere:true,enemyFire:true,shield:true,respawn:true,sound:true};
