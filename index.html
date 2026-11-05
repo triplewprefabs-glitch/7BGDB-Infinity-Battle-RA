@@ -77,7 +77,7 @@ body.marker-display #startScreen,body.marker-display #hud,body.marker-display #s
 /* O body e o próprio DOM Overlay precisam permanecer transparentes no AR.
    Sem isso, o fundo escuro da página pode cobrir a imagem da câmera no Chrome. */
 html.xr-session-active,body.xr-session-active{background:transparent!important}
-body.xr-session-active: xr-overlay{background:transparent!important}
+body.xr-session-active:xr-overlay{background:rgba(0,0,0,0)!important;position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;box-sizing:border-box!important;transform:none!important;contain:paint!important}
 body.xr-session-active #hud,body.xr-session-active #calibrationPanel{ -webkit-text-size-adjust:100%;text-size-adjust:100%; }
 body.xr-session-active #xrCanvas{background:transparent!important}
 body.marker-display #calibrationPanel{display:flex!important;position:fixed;inset:0;padding:0;background:#fff;z-index:99;align-items:center;justify-content:center}
