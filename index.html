@@ -229,13 +229,23 @@ function makeReticle(){const m=new THREE.Mesh(new THREE.RingGeometry(.07,.085,36
 function addBullet(from,to,color,kind='player',impact=null){const material=new THREE.MeshBasicMaterial({color:new THREE.Color(color||'#55ddff')});const mesh=new THREE.Mesh(new THREE.SphereGeometry(.025,12,10),material);scene.add(mesh);mesh.position.copy(from);const lineGeo=new THREE.BufferGeometry().setFromPoints([from,from]);const line=new THREE.Line(lineGeo,new THREE.LineBasicMaterial({color:new THREE.Color(color||'#55ddff'),transparent:true,opacity:.65}));scene.add(line);const distance=from.distanceTo(to);const direction=to.clone().sub(from).normalize();bullets.push({mesh,line,from:from.clone(),to:to.clone(),age:0,kind,position:from.clone(),previous:from.clone(),velocity:direction.multiplyScalar(kind==='drone'?2.7:0),distance,hitRadius:.29,impact,travelDuration:THREE.MathUtils.clamp(distance/8,.18,1.35)});}
 function spawnExplosion(position,color='#55ddff'){
  if(!scene||blastEffects.length>=3)return;
- const count=22,positions=new Float32Array(count*3),velocities=[];
- for(let i=0;i<count;i++){positions[i*3]=position.x;positions[i*3+1]=position.y;positions[i*3+2]=position.z;velocities.push(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize().multiplyScalar(1.5+Math.random()*2.8));}
+ const count=16,positions=new Float32Array(count*3),velocities=[];
+ for(let i=0;i<count;i++){positions[i*3]=position.x;positions[i*3+1]=position.y;positions[i*3+2]=position.z;velocities.push(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize().multiplyScalar(1.2+Math.random()*2.2));}
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
- const material=new THREE.PointsMaterial({color:new THREE.Color(color),size:.055,transparent:true,opacity:1,depthWrite:false,sizeAttenuation:true});
+ const material=new THREE.PointsMaterial({color:new THREE.Color(color),size:.035,transparent:true,opacity:.9,depthWrite:false,sizeAttenuation:true});
  const particles=new THREE.Points(geometry,material);scene.add(particles);
  const flash=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,depthWrite:false}));flash.position.copy(position);scene.add(flash);
- blastEffects.push({particles,velocities,flash,life:0,maxLife:.55});
+ const shardGeometry=new THREE.IcosahedronGeometry(.045,0);
+ const shardMaterial=new THREE.MeshStandardMaterial({color:0x9eabb4,metalness:.92,roughness:.27,emissive:0x17232b,emissiveIntensity:.35});
+ const shards=[],shardVelocities=[],spin=[];
+ for(let i=0;i<9;i++){
+  const shard=new THREE.Mesh(shardGeometry,shardMaterial);shard.position.copy(position);
+  shard.scale.set(.55+Math.random()*.9,.35+Math.random()*.7,.25+Math.random()*.55);
+  shard.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);scene.add(shard);shards.push(shard);
+  shardVelocities.push(new THREE.Vector3(Math.random()-.5,Math.random()-.25,Math.random()-.5).normalize().multiplyScalar(1.15+Math.random()*2.1));
+  spin.push(new THREE.Vector3((Math.random()-.5)*13,(Math.random()-.5)*13,(Math.random()-.5)*13));
+ }
+ blastEffects.push({particles,velocities,flash,shards,shardVelocities,spin,shardGeometry,shardMaterial,life:0,maxLife:.72});
 }
 function spawnSparks(position,color='#55ddff'){
  if(!scene||sparkEffects.length>=8)return;
@@ -266,8 +276,9 @@ async function beginAR(){if(startBusy)return;startBusy=true;try{if(!navigator.xr
  for(let i=blastEffects.length-1;i>=0;i--){
  const fx=blastEffects[i];fx.life+=frameDelta;const attr=fx.particles.geometry.attributes.position;
  for(let j=0;j<fx.velocities.length;j++){const v=fx.velocities[j];attr.array[j*3]+=v.x*frameDelta;attr.array[j*3+1]+=v.y*frameDelta;attr.array[j*3+2]+=v.z*frameDelta;v.multiplyScalar(.94);}
- attr.needsUpdate=true;const k=fx.life/fx.maxLife;fx.particles.material.opacity=Math.max(0,1-k);fx.flash.scale.setScalar(1+k*7);fx.flash.material.opacity=Math.max(0,.85*(1-k));
- if(fx.life>=fx.maxLife){scene.remove(fx.particles,fx.flash);fx.particles.geometry.dispose();fx.particles.material.dispose();fx.flash.geometry.dispose();fx.flash.material.dispose();blastEffects.splice(i,1);}
+ attr.needsUpdate=true;const k=fx.life/fx.maxLife;fx.particles.material.opacity=Math.max(0,.9*(1-k));fx.flash.scale.setScalar(1+k*7);fx.flash.material.opacity=Math.max(0,.85*(1-k));
+ for(let j=0;j<fx.shards.length;j++){const shard=fx.shards[j],v=fx.shardVelocities[j],spin=fx.spin[j];shard.position.addScaledVector(v,frameDelta);v.y-=2.6*frameDelta;v.multiplyScalar(.985);shard.rotation.x+=spin.x*frameDelta;shard.rotation.y+=spin.y*frameDelta;shard.rotation.z+=spin.z*frameDelta;shard.scale.multiplyScalar(1-.12*frameDelta);}
+ if(fx.life>=fx.maxLife){scene.remove(fx.particles,fx.flash,...fx.shards);fx.particles.geometry.dispose();fx.particles.material.dispose();fx.flash.geometry.dispose();fx.flash.material.dispose();fx.shardGeometry.dispose();fx.shardMaterial.dispose();blastEffects.splice(i,1);}
 }
 for(let i=sparkEffects.length-1;i>=0;i--){
  const fx=sparkEffects[i];fx.life+=frameDelta;const attr=fx.points.geometry.attributes.position;
