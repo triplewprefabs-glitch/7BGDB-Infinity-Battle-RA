@@ -276,7 +276,7 @@ function triggerSpaceBossFinale(){
   stopSpaceMusic();
   setTimeout(()=>{
    try{
-    if(!spaceBossFinalePending||spaceBossFinaleStarted)return;
+    if(!spaceBossFinalePending){status('ENTRADA DO ROBÔ BLOQUEADA','O temporizador executou, mas o estado pendente foi desligado antes da execução.');return;}if(spaceBossFinaleStarted){status('ENTRADA DO ROBÔ JÁ INICIADA','O estado indica que a entrada já começou; verificaremos a animação.');return;}
     if(!scene||!window.energyOpsSpaceMarineMode||window.energyOpsSpaceMissionOver){
      spaceBossFinalePending=false;
      status('ENTRADA DO ROBÔ CANCELADA',!scene?'A cena AR foi reiniciada.':!window.energyOpsSpaceMarineMode?'O modo de missão AR foi desativado.':'A missão foi marcada como encerrada.');
