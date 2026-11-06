@@ -38,7 +38,7 @@ body.training-mode #calibrationBtn,body.training-mode #trainingBtn{display:none!
 body.training-mode #arBtn{top:calc(env(safe-area-inset-top) + 76px);left:10px;max-width:calc(100vw - 130px)}
 body.training-mode #closeMatchBtn{top:calc(env(safe-area-inset-top) + 76px)}
 body.training-mode #trainingStats{top:calc(env(safe-area-inset-top) + 122px);left:10px;right:10px;max-width:calc(100vw - 20px);font-size:clamp(10px,2.7vw,13px);line-height:1.25}
-#status{overflow-wrap:anywhere;max-width:46%;font-size:clamp(9px,2.5vw,12px)}
+#status{overflow-wrap:anywhere;max-width:46%;font-size:clamp(9px,2.5vw,12px)}#status{white-space:pre-line}
 .top .panel{min-width:0;max-width:52%}
 #shieldMeter{font-size:clamp(9px,2.5vw,11px)}
 #trainingStats{line-height:1.25;white-space:normal}
@@ -210,7 +210,7 @@ window.energyOpsStopCamera=()=>{if(stream){stream.getTracks().forEach(t=>t.stop(
 async function openCamera(){stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});video.srcObject=stream;track=stream.getVideoTracks()[0];video.style.display='block';await video.play();await disableZoom();statusEl.innerHTML='CÂMERA ATIVA<br>Multiplayer: '+(networkReady?'conectado':'offline')+' · Jogadores: '+connections.size;}
 window.energyOpsRestartCamera=async()=>{try{await openCamera();}catch(e){statusEl.textContent='Não foi possível reabrir a câmera';}};
 async function startGame(){startButton.disabled=true;startButton.textContent='ABRINDO CÂMERA...';try{await openCamera();document.body.classList.add('gameplay-active');document.querySelector('#hud').style.display='block';document.querySelector('#hud').style.visibility='visible';startScreen.style.display='none';cancelAnimationFrame(raf);lastFrame=0;raf=requestAnimationFrame(frame);updateShieldUI()}catch(e){alert('Não foi possível abrir a câmera: '+e.message);startButton.disabled=false;startButton.textContent='TENTAR NOVAMENTE'}}
-window.addEventListener('energyops:ar-status',e=>{statusEl.textContent=e.detail?.text||'AR ativo';if(e.detail?.message)showMessage(e.detail.message)});
+window.addEventListener('energyops:ar-status',e=>{const d=e.detail||{};statusEl.textContent=(d.text||'AR ativo')+(d.message?'\n'+d.message:'');});
 window.addEventListener('energyops:xr-hit',e=>{if(e.detail?.hit){trainingHits++;playImpact();}else trainingMisses++;updateTrainingStats();});
 window.addEventListener('energyops:drone-hit',e=>{if(!trainingMode)return;const damage=Math.max(1,Number(e.detail?.damage)||2);if(shieldActive)damageShield(damage);else{playerHP=Math.max(0,playerHP-damage);playerHPEl.textContent=playerHP;playPlayerHit();if(playerHP<=0){onPlayerDeath(true);robotSpeak('Você foi desativado.');}}});
 window.addEventListener('energyops:player-hit',e=>{if(spaceMarineMode&&window.energyOpsSpaceMissionOver)return;if(shieldActive){damageShield(Number(e.detail?.damage)||20);return;}playerHP=Math.max(0,playerHP-(Number(e.detail?.damage)||20));playerHPEl.textContent=playerHP;playPlayerHit();updateCriticalBreathing();if(playerHP<=0)onPlayerDeath(true);});
