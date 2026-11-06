@@ -190,7 +190,7 @@ function drawShockwaves(dt){for(let i=shockwaves.length-1;i>=0;i--){const q=shoc
 function drawProjectile(p){const w=innerWidth,h=innerHeight,ease=1-Math.pow(1-p.t,1.65),x=p.x0+(p.x1-p.x0)*ease,y=p.y0+(p.y1-p.y0)*ease,size=(cfg.quality==='high'?30:cfg.quality==='medium'?24:18)*Math.pow(1-p.t,1.25)+3;const tail=cfg.trails?size*(cfg.quality==='high'?3.2:2.2):0;ctx.save();ctx.translate(x,y);ctx.rotate(-Math.PI/2+(p.seed*.025));if(tail){const grad=ctx.createLinearGradient(-tail,0,size,0);grad.addColorStop(0,'rgba(0,0,0,0)');grad.addColorStop(.55,p.color+'55');grad.addColorStop(1,p.color);ctx.fillStyle=grad;ctx.beginPath();ctx.ellipse(-tail*.45,0,tail*.55,Math.max(2,size*.18),0,0,Math.PI*2);ctx.fill()}if(cfg.glow){ctx.shadowColor=p.color;ctx.shadowBlur=24}ctx.fillStyle=p.color;ctx.beginPath();ctx.ellipse(0,0,size*.65,size*.28,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.ellipse(size*.12,0,size*.22,size*.12,0,0,Math.PI*2);ctx.fill();ctx.restore()}
 function impact(x,y,color){if(!cfg.explosions)return;for(let i=0;i<10;i++){const a=i/10*Math.PI*2;particles.push({x,y,vx:Math.cos(a)*(1.4+Math.random()*2),vy:Math.sin(a)*(1.4+Math.random()*2),life:1,color})}playImpact()}
 function frame(t){
- const dt=Math.min((t-lastFrame)/1000||.016,.05);lastFrame=t;const now=Date.now();
+ const dt=Math.min((t-lastFrame)/1000||.016,.05);lastFrame=t;const now=Date.now();if(spaceMarineMode&&!window.energyOpsSpaceMissionOver&&playerHP<=0&&!deathSent)onPlayerDeath(true);
  ctx.clearRect(0,0,innerWidth,innerHeight);
  if(playerHP>0&&playerHP<=20&&now-lastBreathAt>2600){lastBreathAt=now;playBreathing()}
  if(playerHP>20){lastBreathAt=0;deathSent=false}
