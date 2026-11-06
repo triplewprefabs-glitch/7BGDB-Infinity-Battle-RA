@@ -267,45 +267,56 @@ function startSpaceMusic(){if(window.energyOpsSpaceMusicActive)return;window.ene
 function playSpaceAlarmBeep(){const a=audio();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.type='square';o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(660,t+.22);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.13*cfg.volume,t+.015);g.gain.setValueAtTime(.13*cfg.volume,t+.22);g.gain.exponentialRampToValueAtTime(.0001,t+.42);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+.44);}function stopSpaceAlarm(){if(spaceAlarmTimer){clearInterval(spaceAlarmTimer);spaceAlarmTimer=0;}const el=document.getElementById('spaceDangerAlarm');if(el)el.style.display='none';}
 function triggerSpaceBossFinale(){
  if(spaceBossFinaleStarted||spaceBossFinalePending||!scene)return;
- if(!spaceBoss&&spaceBossPlantPosition)createSpaceBossAbovePlayer();
- if(!spaceBoss){status('ROBÔ NÃO ENCONTRADO','O local de plantio do robô não foi preservado.');return;}
- if(!spaceBoss.parent)scene.add(spaceBoss);
- if(spaceBossPlantPosition)spaceBossAnchor.copy(spaceBossPlantPosition);else spaceBossAnchor.copy(spaceBoss.position);
- spaceBossFinalePending=true;
- stopSpaceMusic();
- setTimeout(()=>{
-  if(!spaceBossFinalePending||spaceBossFinaleStarted)return;
-  if(!scene||!window.energyOpsSpaceMarineMode||window.energyOpsSpaceMissionOver){
-   spaceBossFinalePending=false;
-   status('ENTRADA DO ROBÔ CANCELADA',!scene?'A cena AR foi reiniciada.':!window.energyOpsSpaceMarineMode?'O modo de missão AR foi desativado.':'A missão foi marcada como encerrada.');
-   return;
-  }
+ try{
   if(!spaceBoss&&spaceBossPlantPosition)createSpaceBossAbovePlayer();
-  if(!spaceBoss){spaceBossFinalePending=false;status('ENTRADA DO ROBÔ INTERROMPIDA','Não foi possível reconstruir o robô. Verifique o plantio.');return;}
+  if(!spaceBoss){status('ROBÔ NÃO ENCONTRADO','O local de plantio do robô não foi preservado.');return;}
   if(!spaceBoss.parent)scene.add(spaceBoss);
-  if(spaceBossPlantPosition)spaceBossAnchor.copy(spaceBossPlantPosition);
+  if(spaceBossPlantPosition)spaceBossAnchor.copy(spaceBossPlantPosition);else spaceBossAnchor.copy(spaceBoss.position);
+  spaceBossFinalePending=true;
+  stopSpaceMusic();
+  setTimeout(()=>{
+   try{
+    if(!spaceBossFinalePending||spaceBossFinaleStarted)return;
+    if(!scene||!window.energyOpsSpaceMarineMode||window.energyOpsSpaceMissionOver){
+     spaceBossFinalePending=false;
+     status('ENTRADA DO ROBÔ CANCELADA',!scene?'A cena AR foi reiniciada.':!window.energyOpsSpaceMarineMode?'O modo de missão AR foi desativado.':'A missão foi marcada como encerrada.');
+     return;
+    }
+    if(!spaceBoss&&spaceBossPlantPosition)createSpaceBossAbovePlayer();
+    if(!spaceBoss)throw new Error('O objeto do robô não existe e não pôde ser recriado.');
+    if(!spaceBoss.parent)scene.add(spaceBoss);
+    if(spaceBossPlantPosition)spaceBossAnchor.copy(spaceBossPlantPosition);
+    spaceBossFinalePending=false;
+    spaceBossFinaleStarted=true;
+    spaceBoss.visible=true;
+    spaceBoss.position.copy(spaceBossAnchor);
+    spaceBoss.position.y=spaceBossAnchor.y+12;
+    spaceBossStartPos.copy(spaceBoss.position);
+    spaceBossEndPos.copy(spaceBossAnchor);
+    spaceBossEndPos.y=spaceBossAnchor.y+1.9;
+    spaceBossStartAt=performance.now()/1000;
+    spaceBossState='descending';
+    spaceBossAttackAt=spaceBossStartAt;
+    spaceCombatStarted=true;
+    stopSpaceAlarm();
+    const alarm=document.getElementById('spaceDangerAlarm');
+    if(alarm){alarm.style.display='block';alarm.style.visibility='visible';}
+    try{playSpaceAlarmBeep();spaceAlarmTimer=setInterval(playSpaceAlarmBeep,900);}catch(soundError){console.warn('Áudio do alerta do robô:',soundError);}
+    status('ALERTA VERMELHO · AMEAÇA MÁXIMA','Todas as esferas foram destruídas! O robô está surgindo!');
+    showMessage('⚠ ALERTA VERMELHO ⚠');
+    setTimeout(()=>stopSpaceAlarm(),3000);
+    updateSpaceStats();
+   }catch(err){
+    spaceBossFinalePending=false;
+    console.error('Falha na entrada do robô:',err);
+    status('FALHA NA ENTRADA DO ROBÔ',String(err&&err.message?err.message:err));
+   }
+  },1200);
+ }catch(err){
   spaceBossFinalePending=false;
-  spaceBossFinaleStarted=true;
-  stopSpaceAlarm();
-  const alarm=document.getElementById('spaceDangerAlarm');
-  if(alarm){alarm.style.display='block';alarm.style.visibility='visible';}
-  playSpaceAlarmBeep();
-  spaceAlarmTimer=setInterval(playSpaceAlarmBeep,900);
-  spaceBoss.visible=true;
-  spaceBoss.position.copy(spaceBossAnchor);
-  spaceBoss.position.y=spaceBossAnchor.y+12;
-  spaceBossStartPos.copy(spaceBoss.position);
-  spaceBossEndPos.copy(spaceBossAnchor);
-  spaceBossEndPos.y=spaceBossAnchor.y+1.9;
-  spaceBossStartAt=performance.now()/1000;
-  spaceBossState='descending';
-  spaceBossAttackAt=spaceBossStartAt;
-  spaceCombatStarted=true;
-  status('ALERTA VERMELHO · AMEAÇA MÁXIMA','Todas as esferas foram destruídas! O robô está surgindo!');
-  showMessage('⚠ ALERTA VERMELHO ⚠');
-  setTimeout(()=>stopSpaceAlarm(),3000);
-  updateSpaceStats();
- },1200);
+  console.error('Falha ao preparar entrada do robô:',err);
+  status('FALHA AO PREPARAR O ROBÔ',String(err&&err.message?err.message:err));
+ }
 }
 function updateSpaceStats(){const el=document.getElementById('trainingStats');if(el)el.textContent='FUZILEIRO ESPACIAL · ESFERAS: '+spaceSpheresDestroyed+'/'+spaceSpheresPlaced+' · ROBÔ: '+(spaceBossState==='fighting'||spaceBossState==='flying'?'NÚCLEO '+spaceBossHP+'/60':spaceBossState==='destroyed'?'DESTRUÍDO':'AGUARDANDO');const bar=document.getElementById('spaceBossHealth'),fill=document.getElementById('spaceBossHealthFill'),label=document.getElementById('spaceBossHealthText');if(bar){bar.style.display=spaceBoss?'block':'none';if(fill)fill.style.width=Math.max(0,spaceBossHP/60*100)+'%';if(label)label.textContent=Math.max(0,spaceBossHP)+' / 60';}}
 function createRobotLaserWarning(pos,detonateAt){if(!scene)return;const g=new THREE.Group(),ring=new THREE.Mesh(new THREE.RingGeometry(.55,.78,32),new THREE.MeshBasicMaterial({color:0xff172b,transparent:true,opacity:.85,side:THREE.DoubleSide})),inner=new THREE.Mesh(new THREE.CircleGeometry(.52,24),new THREE.MeshBasicMaterial({color:0xff172b,transparent:true,opacity:.16,side:THREE.DoubleSide}));ring.rotation.x=inner.rotation.x=-Math.PI/2;g.add(ring,inner);g.position.copy(pos);g.position.y+=.025;scene.add(g);spaceBoss.userData.laserWarnings.push({mesh:g,position:pos.clone(),detonateAt});}
