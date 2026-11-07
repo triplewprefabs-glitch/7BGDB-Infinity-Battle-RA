@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>[7BGD]Wolf3d Map Edit</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0000aa;--pn:#aaaaaa;--cv:#000;--cell:#101018;--grid:rgba(85,255,255,.22);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{background:#000;color:#fff;font:20px/1.1 "VT323","Perfect DOS VGA 437",Consolas,"Courier New",monospace;-webkit-font-smoothing:none;overflow:hidden;display:flex;justify-content:center;user-select:none;-webkit-user-select:none}
+#app{display:flex;flex-direction:column;height:100%;width:min(100vw,calc(100dvh*9/16));background:var(--bg);position:relative;overflow:hidden}
+button,select,input{font:inherit;color:inherit;border-radius:0}
+#top{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:5px 6px;background:var(--pn);color:#000;border-bottom:2px solid #000;flex:none}
+.b{background:#aaa;color:#000;border:2px solid;border-color:#fff #555 #555 #fff;padding:2px 8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;flex:none}
+.b:hover{background:#00aaaa}
+.b.on{background:#0000aa;color:#fff;border-color:#555 #fff #fff #555}
+.b:focus-visible,select:focus-visible,input:focus-visible{outline:2px dotted #ff0;outline-offset:1px}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:square;stroke-linejoin:miter;shape-rendering:crispEdges;flex:none}
+select,#mn,#cd{background:#000;color:#55ffff;border:2px solid;border-color:#555 #fff #fff #555;padding:2px 5px;min-height:34px;box-sizing:border-box}
+#brand{flex:1 1 auto;min-width:0;color:#0000aa;font-size:19px;line-height:.95}.tr{display:flex;align-items:center;gap:5px;flex:1 0 100%;min-width:0}#ms{flex:1 1 0;min-width:0}#gm{width:86px;flex:none}#sz{width:92px;flex:none}#vm,#lg{padding:2px 5px}#logo{width:26px;height:26px;flex:none;image-rendering:pixelated;image-rendering:crisp-edges;image-rendering:pixelated;border:2px solid #000}.wb{width:30px;min-height:30px;padding:0!important}.wb:disabled{opacity:.45;cursor:default}.wb:disabled:hover{background:#aaa}#top select{font-size:18px;padding:2px 3px}#pe{flex:none!important;width:38px}#pal.big{flex-basis:72%}#app.land #pal.big{flex-basis:min(56%,540px)}#cd{width:84px;min-height:30px;flex:none}
+#menu{position:fixed;z-index:20;background:var(--pn);color:#000;border:3px double #000;min-width:250px;padding:3px;display:none;box-shadow:8px 8px 0 #000}
+#menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:7px 10px;cursor:pointer;color:#000}
+#menu button:hover{background:#000;color:#fff}
+#menu hr{border:0;border-top:2px solid #555;margin:3px 0}
+#main{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px;padding:4px}
+#tools{flex:none;display:flex;gap:4px;padding:4px;overflow-x:auto;background:var(--pn);border:3px double #fff}
+#tools .b{padding:2px 6px}
+#wrap{flex:1;min-height:0;position:relative;background:#000;border:4px double #fff}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;image-rendering:crisp-edges;image-rendering:pixelated}
+#pal{flex:0 0 44%;min-height:0;display:flex;flex-direction:column;background:var(--pn);color:#000;border:3px double #fff}
+#lt{display:flex;gap:4px;padding:4px}#lt .b{flex:1;min-height:30px;padding:0 4px}
+#pv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px 6px;border-block:2px solid #555;flex:none}
+#pc{width:34px;height:34px;flex:none;image-rendering:crisp-edges;image-rendering:pixelated;background:#000;border:2px solid;border-color:#555 #fff #fff #555}
+#sel{flex:1;min-width:0;word-break:break-word}
+#ct{display:flex;gap:4px;flex:1 0 100%}#ct select{min-height:26px;font-size:16px;padding:0 3px;flex:1;min-width:0}
+#grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,40px);gap:4px;padding:6px;align-content:start;justify-content:center;touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#grid button{width:40px;height:40px;padding:2px;border:2px solid;border-color:#555 #fff #fff #555;background:#000;cursor:pointer}
+#grid button.on{border-color:#ffff55;outline:2px solid #000}
+#grid canvas{width:32px;height:32px;display:block;image-rendering:crisp-edges;image-rendering:pixelated}
+#ov{position:fixed;inset:0;background:rgba(0,0,170,.7);display:none;align-items:center;justify-content:center;z-index:30}
+#box{background:var(--pn);color:#000;border:4px double #000;box-shadow:10px 10px 0 #000;padding:14px;width:min(460px,92vw);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+#box h2{margin:0;font-size:22px;font-weight:400;background:#000;color:#fff;padding:2px 8px}
+#box label{display:flex;flex-direction:column;gap:4px}
+#box p{margin:0;color:#222}
+#box input[type=file]{background:#fff;border:2px inset #555;padding:4px}
+#box .r{display:flex;gap:8px;justify-content:flex-end}
+.p{background:#0000aa;color:#fff}
+#app.land{width:min(100vw,calc(100dvh*16/9))}
+#app.land #main{flex-direction:row}
+#app.land #tools{flex-direction:column;overflow-x:visible;overflow-y:auto}
+#app.land #wrap{min-width:0}
+#app.land #pal{flex:0 0 min(34%,320px)}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#ffff55;color:#000;border:2px solid #000;box-shadow:5px 5px 0 #000;padding:4px 12px;display:none;z-index:40;max-width:90vw}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="top">
+ <div class="tr"><canvas id="logo" width="16" height="16" aria-hidden="true"></canvas><div id="brand">[7BGD]Wolf3d Map Edit</div><button class="b" id="vm" data-ti="tView"></button><button class="b" id="lg" data-ti="lang"></button><button class="b wb" id="wmin" data-ti="tMin"></button><button class="b wb" id="wmax" data-ti="tMax"></button></div>
+ <div class="tr"><button class="b" id="fb" data-i="file"></button><select id="gm" data-ti="gameT"></select><select id="ms" aria-label="Map"></select><button class="b" id="madd" data-ti="addmapT"></button><select id="sz" data-ti="sizeT"></select></div>
+</div>
+<div id="main">
+ <div id="tools"></div>
+ <div id="wrap"><canvas id="cv"></canvas></div>
+ <div id="pal">
+  <div id="lt"><button class="b" id="pl0" data-i="tabW"></button><button class="b" id="pl1" data-i="tabO"></button><button class="b" id="pl2" data-i="tabS"></button><button class="b" id="pe" data-ti="tExp"></button></div>
+  <div id="pv"><canvas id="pc" width="128" height="128"></canvas><div id="sel"></div><input id="cd" size="6" data-ti="codeT" placeholder="0x…"><div id="ct"></div></div>
+  <div id="grid"></div>
+ </div>
+</div>
+</div>
+<div id="menu">
+ <button data-a="new" data-i="new"></button>
+ <button data-a="open" data-i="open"></button>
+ <button data-a="ren" data-i="ren"></button><hr>
+ <button data-a="imp" data-i="imp"></button>
+ <button data-a="sav" data-i="sav"></button><hr>
+ <button data-a="exp" data-i="exp"></button>
+</div>
+<div id="ov"><div id="box"></div></div>
+<div id="toast"></div>
+<input type="file" id="fo" multiple hidden>
+<script>
+const $=id=>document.getElementById(id);let N=64;
+const ic=p=>`<svg class="i" viewBox="0 0 24 24"><path d="${p}"/></svg>`;
+let LANG=0;try{LANG=+localStorage.getItem('wl-lang')||0}catch(e){}if(!(LANG>=0&&LANG<=2))LANG=0;
+const LN=['EN','ES','PT'];
+const T={
+tView:'Screen format (9:16 / 16:9)|Formato de pantalla (9:16 / 16:9)|Formato de tela (9:16 / 16:9)',file:'File|Archivo|Arquivo',new:'New project|Nuevo proyecto|Novo projeto',open:'Open map…|Abrir mapa…|Abrir mapa…',
+imp:'Import project (VSWAP)…|Importar proyecto (VSWAP)…|Importar projeto (VSWAP)…',sav:'Save project (.json)|Guardar proyecto (.json)|Salvar projeto (.json)',exp:'Export…|Exportar…|Exportar…',
+addmap:'+ Map|+ Mapa|+ Mapa',addmapT:'New map|Nuevo mapa|Novo mapa',sizeT:'Grid size|Tamaño de la cuadrícula|Tamanho do grid',lang:'Language|Idioma|Idioma',gameT:'Game|Juego|Jogo',tMin:'Exit full screen (minimize)|Salir de pantalla completa (minimizar)|Sair da tela cheia (minimizar)',tMax:'Full screen (maximize)|Pantalla completa (maximizar)|Tela cheia (maximizar)',noFs:'Full screen is blocked here (the browser or the page hosting the editor does not allow it).|La pantalla completa está bloqueada aquí (el navegador o la página que aloja el editor no la permite).|A tela cheia está bloqueada aqui (o navegador ou a página que hospeda o editor não permite).',ren:'Rename map…|Renombrar mapa…|Renomear mapa…',renT:'Rename map|Renombrar mapa|Renomear mapa',ok:'OK|OK|OK',tExp:'Expand / shrink the list|Ampliar / reducir la lista|Ampliar / reduzir a lista',bossSod:'Boss code {0} (name varies by game)|Jefe código {0} (el nombre varía según el juego)|Chefe código {0} (o nome varia conforme o jogo)',savPl:'Export planes (JSON)|Exportar planos (JSON)|Exportar planos (JSON)',tabI:'Info|Info|Info',codeT:'Code (decimal or 0x hex)|Código (decimal o 0x hex)|Código (decimal ou 0x hex)',
+tabW:'Textures|Texturas|Texturas',tabO:'Objects|Objetos|Objetos',tabS:'Specials|Especiales|Especiais',
+tPen:'Pencil (P)|Lápiz (P)|Lápis (P)',tEra:'Eraser (E)|Borrador (E)|Borracha (E)',tRect:'Rectangle (R)|Rectángulo (R)|Retângulo (R)',tFrect:'Filled rectangle (B)|Rectángulo relleno (B)|Retângulo cheio (B)',
+tFill:'Paint bucket (F)|Bote de pintura (F)|Balde de tinta (F)',tPick:'Eyedropper (I)|Cuentagotas (I)|Conta-gotas (I)',tHand:'Pan (H or Space)|Mover (H o Espacio)|Mover (H ou Espaço)',
+tClear:'Erase the whole map|Borrar todo el escenario|Apagar todo o cenário',tZin:'Zoom in (+)|Acercar (+)|Aumentar zoom (+)',tZout:'Zoom out (-)|Alejar (-)|Diminuir zoom (-)',
+tFit:'Fit to screen|Ajustar a la pantalla|Ajustar à tela',tUn:'Undo (Ctrl+Z)|Deshacer (Ctrl+Z)|Desfazer (Ctrl+Z)',tRe:'Redo (Ctrl+Y)|Rehacer (Ctrl+Y)|Refazer (Ctrl+Y)',tGrid:'Grid (G)|Cuadrícula (G)|Grade (G)',
+cancel:'Cancel|Cancelar|Cancelar',discard:'Discard|Descartar|Descartar',doImport:'Import|Importar|Importar',doExport:'Export|Exportar|Exportar',
+newTitle:'New project|Nuevo proyecto|Novo projeto',newTxt:'Discard the current project and start a new one?|¿Descartar el proyecto actual y empezar uno nuevo?|Descartar o projeto atual e começar um novo?',
+cleared:'Map erased. Ctrl+Z undoes it.|Escenario borrado. Ctrl+Z lo deshace.|Cenário apagado. Ctrl+Z desfaz.',wall:'Wall|Muro|Parede',
+impTitle:'Import Wolf3D project|Importar proyecto de Wolf3D|Importar projeto do Wolf3D',
+impTxt1:'Choose the game’s VSWAP file (VSWAP.WL6, .WL1, .SOD…). It holds the wall and door textures and the sprites for ammo, weapons, items and enemies.|Elige el archivo VSWAP del juego (VSWAP.WL6, .WL1, .SOD…). Contiene las texturas de paredes y puertas y los sprites de munición, armas, objetos y enemigos.|Escolha o VSWAP do jogo (VSWAP.WL6, .WL1, .SOD…). Ele traz as texturas de parede e porta e os sprites de munição, armas, itens e inimigos.',
+impTxt2:'Optional: also select a 768-byte palette file (.pal or PLAYPAL) to use other colors. By default the Wolfenstein 3D palette is used.|Opcional: selecciona también un archivo de paleta de 768 bytes (.pal o PLAYPAL) para usar otros colores. Por defecto se usa la paleta de Wolfenstein 3D.|Opcional: escolha junto um arquivo de paleta de 768 bytes (.pal ou PLAYPAL) para usar outras cores. Por padrão é usada a paleta do Wolfenstein 3D.',
+noVswap:'Select the game’s VSWAP file.|Selecciona el archivo VSWAP del juego.|Selecione o arquivo VSWAP do jogo.',badVswap:'That file does not look like a valid VSWAP.|Ese archivo no parece un VSWAP válido.|Esse arquivo não parece um VSWAP válido.',
+impDone:'{0} textures and {1} sprites imported{2}|{0} texturas y {1} sprites importados{2}|{0} texturas e {1} sprites importados{2}',palApprox:' (approximate palette).| (paleta aproximada).| (paleta aproximada).',
+saved:'Ready: {0}|Listo: {0}|Pronto: {0}',saveFail:'Could not save: {0}|No se pudo guardar: {0}|Não foi possível salvar: {0}',
+projOpen:'Project opened.|Proyecto abierto.|Projeto aberto.',projBad:'Invalid project file.|Archivo de proyecto no válido.|Arquivo de projeto inválido.',
+openHelp:'Choose a map file: an ECWolf .wad, GAMEMAPS (MAPHEAD is optional) or a .json project.|Elige un archivo de mapas: un .wad de ECWolf, GAMEMAPS (MAPHEAD es opcional) o un proyecto .json.|Escolha um arquivo de mapas: .wad do ECWolf, GAMEMAPS (o MAPHEAD é opcional) ou um projeto .json.',
+noHead:'Without MAPHEAD I can only find maps made by this editor. Select MAPHEAD too.|Sin el MAPHEAD solo encuentro mapas hechos por este editor. Selecciona también el MAPHEAD.|Sem o MAPHEAD só consigo achar mapas gerados por este editor. Selecione o MAPHEAD junto.',
+noMaps:'No maps found.|No se encontraron mapas.|Nenhum mapa encontrado.',readFail:'Could not read those map files.|No pude leer esos archivos de mapas.|Não consegui ler esses arquivos de mapa.',
+wadNo:'This .wad has no maps in PLANES format. UWMF cannot be opened yet.|Este .wad no tiene mapas en formato PLANES. UWMF aún no se puede abrir.|Esse .wad não tem mapas no formato PLANES. UWMF ainda não pode ser aberto.',
+opened:'{0} map(s) opened.|{0} mapa(s) abierto(s).|{0} mapa(s) aberto(s).',
+expTitle:'Export maps|Exportar mapas|Exportar mapas',expWad:'ECWolf: single .wad file (recommended)|ECWolf: archivo .wad único (recomendado)|ECWolf: arquivo .wad único (recomendado)',
+expUwmf:'ECWolf: UWMF in .wad (experimental)|ECWolf: UWMF en .wad (experimental)|ECWolf: UWMF em .wad (experimental)',
+expClassic:'Classic game files (64×64 maps only)|Archivos clásicos del juego (solo mapas 64×64)|Arquivos clássicos do jogo (só mapas 64×64)',expHead:'Also write MAPHEAD (the classic game needs it)|Generar también el MAPHEAD (el juego clásico lo necesita)|Gerar também o MAPHEAD (o jogo clássico precisa dele)',all:'All|Todos|Todos',none:'None|Ninguno|Nenhum',
+expNote:'The ECWolf .wad holds every map in one file and needs no MAPHEAD. In this browser the file is delivered inside a .zip.|El .wad de ECWolf reúne todos los mapas en un solo archivo y no necesita MAPHEAD. En este navegador el archivo se entrega dentro de un .zip.|O .wad do ECWolf reúne todos os mapas em um só arquivo e não precisa de MAPHEAD. Neste navegador o arquivo sai dentro de um .zip.',
+uwIgn:'UWMF: {0} item(s) (doors, enemies, items) were not converted.|UWMF: {0} elemento(s) (puertas, enemigos, objetos) no se convirtieron.|UWMF: {0} item(ns) (portas, inimigos, itens) não foram convertidos.',
+no64:'No 64×64 maps for the classic formats.|No hay mapas 64×64 para los formatos clásicos.|Nenhum mapa 64×64 para os formatos clássicos.'};
+const t=(k,...a)=>{let x=(T[k]||k).split('|')[LANG]||'';a.forEach((v,i)=>x=x.replace('{'+i+'}',v));return x};
+const loc=x=>x.split('|')[LANG]||x;
+const DIFFN=[['easy','medium','hard'],['fácil','medio','difícil'],['fácil','médio','difícil']],POSTN=[['standing','patrol'],['parado','patrulla'],['parado','patrulha']],DIRS=['→','↑','←','↓'];
+const Z='M10 4a6 6 0 100 12 6 6 0 000-12z M20 20l-5.5-5.5 M7 10h6';
+const TOOLS=[
+['un','tUn','M9 14L4 9l5-5 M4 9h10a6 6 0 010 12h-3'],['re','tRe','M15 14l5-5-5-5 M20 9H10a6 6 0 000 12h3'],
+['pen','tPen','M4 20l1-4L16 5l3 3L8 19z M14 7l3 3'],['eraser','tEra','M8 20h11 M5 15l9-9 5 5-6 6H8z M10 10l5 5'],
+['rect','tRect','M5 6h14v12H5z'],['frect','tFrect','M5 6h14v12H5z M8 9h8v6H8z'],
+['fill','tFill','M6 12l6-6 7 7-6 6z M5 21h6 M20 16c1 1.5 1.5 3 0 3s-1-1.5 0-3'],['pick','tPick','M14 4l6 6-3 3-6-6z M12 8L4 17v3h3l9-8'],
+['hand','tHand','M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3'],
+['grid','tGrid','M3 3h18v18H3z M9 3v18 M15 3v18 M3 9h18 M3 15h18'],['zin','tZin',Z+' M10 7v6'],['zout','tZout',Z],
+['fit','tFit','M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5'],['clear','tClear','M5 7h14 M9 7V4h6v3 M7 7l1 13h8l1-13 M10 11v6 M14 11v6']];
+$('tools').innerHTML=TOOLS.map(x=>`<button class="b" data-t="${x[0]}" data-ti="${x[1]}">${ic(x[2])}</button>`).join('');
+
+const OBJ={};
+[[19,'⬆','Player start: north|Inicio del jugador: norte|Início do jogador: norte'],[20,'➡','Player start: east|Inicio del jugador: este|Início do jogador: leste'],[21,'⬇','Player start: south|Inicio del jugador: sur|Início do jogador: sul'],[22,'⬅','Player start: west|Inicio del jugador: oeste|Início do jogador: oeste'],
+[23,'💧','Puddle|Charco|Poça'],[24,'🛢','Green barrel|Barril verde|Barril verde'],[25,'🍽','Table and chairs|Mesa y sillas|Mesa e cadeiras'],[26,'💡','Floor lamp|Lámpara de pie|Luminária'],[27,'🔆','Chandelier|Candelabro|Lustre'],[28,'🧍','Hanged man|Ahorcado|Enforcado'],[29,'🥫','Dog food|Comida de perro|Comida de cão'],[30,'🏛','Column|Columna|Coluna'],[31,'🌿','Plant|Planta|Planta'],[32,'💀','Skeleton|Esqueleto|Esqueleto'],[33,'🚰','Sink|Lavabo|Pia'],[34,'🪴','Vase|Florero|Vaso'],[35,'🏺','Urn|Urna|Urna'],[36,'🟫','Empty table|Mesa vacía|Mesa vazia'],[37,'🔦','Ceiling light|Luz de techo|Luz de teto'],[38,'🍳','Pots|Ollas|Panelas'],[39,'🛡','Armor|Armadura|Armadura'],[40,'⛓','Cage|Jaula|Gaiola'],[41,'☠','Cage with skeleton|Jaula con esqueleto|Gaiola com esqueleto'],[42,'🦴','Bones|Huesos|Ossos'],
+[43,'🔑','Gold key|Llave de oro|Chave de ouro'],[44,'🗝','Silver key|Llave de plata|Chave de prata'],[45,'🛏','Bed|Cama|Cama'],[46,'🧺','Basket|Cesta|Cesta'],[47,'🍗','Food|Comida|Comida'],[48,'➕','Medkit|Botiquín|Kit médico'],[49,'🔸','Ammo|Munición|Munição'],[50,'🔫','Machine gun|Ametralladora|Metralhadora'],[51,'⚙','Chaingun|Chaingun|Chaingun'],[52,'✝','Cross|Cruz|Cruz'],[53,'🏆','Chalice|Cáliz|Cálice'],[54,'📦','Chest|Cofre|Baú'],[55,'👑','Crown|Corona|Coroa'],[56,'❤','Extra life|Vida extra|Vida extra'],[57,'🩸','Bones and blood|Huesos y sangre|Ossos e sangue'],[58,'🛢','Barrel|Barril|Barril'],[59,'⛲','Well|Pozo|Poço'],[60,'⭕','Empty well|Pozo seco|Poço seco'],[61,'🩸','Blood|Sangre|Sangue'],[62,'🚩','Flag|Bandera|Bandeira'],
+[98,'⬛','Push wall (secret)|Muro empujable (secreto)|Parede secreta (empurrar)'],[99,'🏁','End-game trigger (99)|Disparador de fin de juego (99)|Gatilho de fim de jogo (99)']].forEach(([i,e,n])=>OBJ[i]=[e,n]);
+[[63,'📢','Call Apogee sign|Cartel Call Apogee|Cartaz Call Apogee'],[64,'🪨','Rubble|Escombros|Entulho'],[65,'🪨','Rubble (small)|Escombros (pequeño)|Entulho (pequeno)'],[66,'🪨','Rubble (pile)|Escombros (montón)|Entulho (monte)'],[67,'🍴','Hanging utensils|Utensilios colgados|Utensílios pendurados'],[68,'🔥','Stove|Estufa|Fogão'],[69,'🔱','Spears|Lanzas|Lanças'],[70,'🌿','Vines|Enredaderas|Trepadeiras'],
+[124,'☠','Dead guard|Guardia muerto|Guarda morto'],[160,'🎭','Fake Hitler|Falso Hitler|Falso Hitler'],[178,'🤖','Hitler (mecha suit)|Hitler (con mecha)|Hitler (mecha)'],[179,'🎖','General Fettgesicht|General Fettgesicht|General Fettgesicht'],[196,'💉','Doctor Schabbs|Doctor Schabbs|Doutor Schabbs'],[197,'👩','Gretel Grosse|Gretel Grosse|Gretel Grosse'],[214,'🦾','Hans Grosse|Hans Grosse|Hans Grosse'],[215,'☣','Otto Giftmacher|Otto Giftmacher|Otto Giftmacher'],
+[224,'👻','Ghost Blinky (red)|Fantasma Blinky (rojo)|Fantasma Blinky (vermelho)'],[225,'👻','Ghost Pinky (pink)|Fantasma Pinky (rosa)|Fantasma Pinky (rosa)'],[226,'👻','Ghost Clyde (orange)|Fantasma Clyde (naranja)|Fantasma Clyde (laranja)'],[227,'👻','Ghost Inky (blue)|Fantasma Inky (azul)|Fantasma Inky (azul)']].forEach(([i,e,n])=>OBJ[i]=[e,n]);
+[[72,'🟨','Gold bars|Lingotes de oro|Barras de ouro'],[73,'🎁','Treasure box|Caja del tesoro|Caixa do tesouro'],[74,'🔱','Spear of Destiny (item)|Lanza del Destino (objeto)|Lança do Destino (item)'],
+[125,'🤖','Trans Grosse (boss)|Trans Grosse (jefe)|Trans Grosse (chefe)'],[143,'🎖','Barnacle Wilhelm (boss)|Barnacle Wilhelm (jefe)|Barnacle Wilhelm (chefe)'],[142,'🧟','Ubermutant (boss)|Ubermutant (jefe)|Ubermutant (chefe)'],[161,'💀','Death Knight (boss)|Death Knight (jefe)|Death Knight (chefe)'],[107,'😈','Angel of Death (boss)|Angel of Death (jefe)|Angel of Death (chefe)'],[106,'👻','Spectre|Espectro|Espectro']].forEach(([i,e,n])=>OBJ[i]=[e,n]);
+const isSpear=()=>['sod','sd2','sd3'].includes(S.game),SODB=[125,143,142,161,107,106],SODONLY=[72,73,74,106,107,125,142,143,161],WLONLY=[160,178,179,196,197,214,215,224,225,226,227];
+const SD23N={};for(let i=63;i<=71;i++)SD23N[i]=['▪','Prop '+i+'|Objeto '+i+'|Objeto '+i];SD23N[38]=['▪','Prop 38|Objeto 38|Objeto 38'];SD23N[73]=['🪧','BJ WAS HERE sign|Cartel BJ WAS HERE|Cartaz BJ WAS HERE'];
+const spN=id=>S.game=='sod'?SODN[id]:SD23N[id];
+const SODN={38:['⛓','Bloody cage|Jaula ensangrentada|Gaiola ensanguentada'],45:['⛓','Bloody cage (large)|Jaula ensangrentada (grande)|Gaiola ensanguentada (grande)'],63:['💡','Red ceiling lamp|Lámpara roja de techo|Luminária vermelha de teto'],64:['▪','Debris|Escombros pequeños|Detritos'],65:['🪨','Rubble|Escombros|Entulho'],66:['🪨','Rubble (pile)|Escombros (montón)|Entulho (monte)'],67:['🩸','Bloody stake|Estaca ensangrentada|Estaca ensanguentada'],68:['🩸','Bloody remains|Restos sangrientos|Restos sangrentos'],69:['🗿','Statue|Estatua|Estátua'],70:['🌿','Vines|Enredaderas|Trepadeiras'],71:['🏛','Orange column|Columna naranja|Coluna laranja']};
+['→','↗','↑','↖','←','↙','↓','↘'].forEach((a,i)=>OBJ[90+i]=[a,'Patrol turn '+a+'|Giro de patrulla '+a+'|Giro de patrulha '+a]);
+const ENE=[['Guard|Guardia|Guarda',108,36],['Officer|Oficial|Oficial',116,36],['SS|SS|SS',126,36],['Dog|Perro|Cão',134,36],['Mutant|Mutante|Mutante',216,18]];
+ENE.forEach((e,i)=>OBJ[e[1]]=[['🪖','🎖','⚡','🐕','🧟'][i],e[0]]);
+const D0={90:'Door (vertical)|Puerta (vertical)|Porta (vertical)',91:'Door (horizontal)|Puerta (horizontal)|Porta (horizontal)',92:'Gold-key door (vertical)|Puerta de llave de oro (vertical)|Porta com chave de ouro (vertical)',93:'Gold-key door (horizontal)|Puerta de llave de oro (horizontal)|Porta com chave de ouro (horizontal)',94:'Silver-key door (vertical)|Puerta de llave de plata (vertical)|Porta com chave de prata (vertical)',95:'Silver-key door (horizontal)|Puerta de llave de plata (horizontal)|Porta com chave de prata (horizontal)',100:'Elevator door (vertical)|Puerta de ascensor (vertical)|Porta do elevador (vertical)',101:'Elevator door (horizontal)|Puerta de ascensor (horizontal)|Porta do elevador (horizontal)',21:'Elevator switch (level exit)|Interruptor de ascensor (salida de nivel)|Interruptor do elevador (saída de fase)',106:'Ambush floor (deaf guard)|Piso de emboscada (guardia sordo)|Piso de emboscada (guarda surdo)',107:'Secret exit floor|Piso de salida secreta|Piso de saída secreta'};
+function ent(id){for(const e of ENE)for(let d=0;d<3;d++){const b=e[1]+e[2]*d;if(id>=b&&id<b+8)return{n:e[0],b:e[1],d,pa:id>=b+4,dir:(id-b)&3}}return null}
+function mark(c,x,y,s,e){c.fillStyle=['#55ff55','#ffff55','#ff5555'][e.d];c.fillRect(x+s*.04,y+s*.04,s*.2,s*.2);c.fillStyle='#000';c.fillRect(x+s*.5,y+s*.55,s*.5,s*.45);c.fillStyle='#ffff55';c.font=`${s*.4}px VT323,monospace`;c.textAlign='center';c.textBaseline='middle';c.fillText(DIRS[e.dir]+(e.pa?'~':''),x+s*.75,y+s*.77)}
+const EGA=['#0000aa','#00aa00','#00aaaa','#aa0000','#aa00aa','#aa5500','#aaaaaa','#555555','#5555ff','#55ff55','#55ffff','#ff5555','#ff55ff','#ffff55','#ffffff'];
+const WALLS=[...Array(63).keys()].map(i=>i+1).filter(i=>i!=21);
+const S={maps:[],cur:0,layer:0,tool:'pen',sel:[1,19,0],tab:0,diff:0,post:0,grid:true,cam:{x:0,y:0,z:12},custom:{},un:[],re:[]};
+const cur=()=>S.maps[S.cur].p[S.layer];
+function newMap(name,k){k=k||64;const p=[0,1,2].map(()=>new Uint16Array(k*k));
+ for(let i=0;i<k;i++)for(const [x,y] of [[i,0],[i,k-1],[0,i],[k-1,i]])p[0][y*k+x]=1;
+ p[1][(k>>1)*k+(k>>1)]=19;return{name:name||'MAP '+(S.maps.length+1),n:k,p}}
+function toast(x){const e=$('toast');e.textContent=x;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',4500)}
+
+/* ---------- desenho ---------- */
+const cv=$('cv'),ctx=cv.getContext('2d');let dpr=1,hover=null;
+function bbox(img){const k=document.createElement('canvas');k.width=k.height=64;const q=k.getContext('2d');q.drawImage(img,0,0,64,64);const d=q.getImageData(0,0,64,64).data;let x0=64,y0=64,x1=-1,y1=-1;for(let j=0;j<64;j++)for(let i=0;i<64;i++)if(d[(j*64+i)*4+3]){if(i<x0)x0=i;if(i>x1)x1=i;if(j<y0)y0=j;if(j>y1)y1=j}return x1<0?{x:0,y:0,w:64,h:64}:{x:x0,y:y0,w:x1-x0+1,h:y1-y0+1}}
+function art(c,x,y,s,l,id,crop){
+ c.imageSmoothingEnabled=false;
+ if(l==2){c.fillStyle='#124a5a';c.fillRect(x,y,s,s);c.fillStyle='#55ffff';c.textAlign='center';c.textBaseline='middle';c.font=`${s*(id>255?.32:.4)}px VT323,monospace`;c.fillText(id.toString(16).toUpperCase(),x+s/2,y+s/2);return}
+ const e=l?ent(id):null,u=S.custom[l+':'+(e?e.b:id)];
+ if(u&&u.img&&u.img.complete&&u.img.naturalWidth){if(crop&&l==1){const b=u.bb||(u.bb=bbox(u.img)),k=Math.min(s*.9/b.w,s*.9/b.h),w=b.w*k,h=b.h*k;c.drawImage(u.img,b.x,b.y,b.w,b.h,x+(s-w)/2,y+(s-h)/2,w,h)}else c.drawImage(u.img,x,y,s,s);if(e)mark(c,x,y,s,e);return}
+ if(l==0){
+  if(id>=1&&id<=63){c.fillStyle=id==21?'#2f9e44':EGA[id*7%14];c.fillRect(x,y,s,s);c.fillStyle='rgba(0,0,0,.35)';for(let k=1;k<4;k++)c.fillRect(x,y+s*k/4-1,s,Math.max(1,s/16));
+   if(s>=22){c.fillStyle='rgba(255,255,255,.85)';c.font=`${s*.4}px VT323,monospace`;c.textAlign='center';c.textBaseline='middle';c.fillText(id==21?'EXIT':id,x+s/2,y+s/2)}}
+  else if(id>=90&&id<=101){c.fillStyle=id==92||id==93?'#c9981a':id==94||id==95?'#9aa4b5':id>=100?'#5f9a68':'#8a6a3a';c.fillRect(x,y,s,s);
+   c.strokeStyle='rgba(0,0,0,.65)';c.lineWidth=Math.max(1,s*.08);c.beginPath();
+   if(id%2==0){c.moveTo(x+s/2,y+s*.1);c.lineTo(x+s/2,y+s*.9)}else{c.moveTo(x+s*.1,y+s/2);c.lineTo(x+s*.9,y+s/2)}c.stroke()}
+  else if(id>=106&&id<=143){c.fillStyle=id<108?'#33507a':'rgba(120,160,200,.18)';c.fillRect(x,y,s,s);if(id<108){c.fillStyle='#fff';c.textAlign='center';c.textBaseline='middle';c.font=`${s*.45}px VT323,monospace`;c.fillText(id==106?'!':id==107?'EXIT':id,x+s/2,y+s/2)}}
+  else if(id){c.fillStyle='#777';c.fillRect(x,y,s,s);c.fillStyle='#fff';c.textAlign='center';c.textBaseline='middle';c.font=`${s*.4}px VT323,monospace`;c.fillText(id,x+s/2,y+s/2)}
+ }else{
+  const o=(isSpear()&&spN(id))||OBJ[e?e.b:id];
+  if(id>=19&&id<=22){c.fillStyle='#2f9e44';c.beginPath();c.arc(x+s/2,y+s/2,s*.42,0,7);c.fill();c.fillStyle='#fff'}
+  else c.fillStyle='#fff';
+  c.textAlign='center';c.textBaseline='middle';
+  if(o){c.font=`${s*.6}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;c.fillText(o[0],x+s/2,y+s/2+s*.04);if(e)mark(c,x,y,s,e)}
+  else{c.fillStyle='#d9480f';c.fillRect(x+s*.15,y+s*.15,s*.7,s*.7);c.fillStyle='#fff';c.font=`${s*.3}px sans-serif`;c.fillText(id,x+s/2,y+s/2)}
+ }}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function draw(){
+ const w=cv.width/dpr,h=cv.height/dpr,{x:cx,y:cy,z}=S.cam,M=S.maps[S.cur];
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle=css('--cv');ctx.fillRect(0,0,w,h);
+ ctx.fillStyle=css('--cell');ctx.fillRect(-cx*z,-cy*z,N*z,N*z);
+ const x0=Math.max(0,Math.floor(cx)),x1=Math.min(N-1,Math.ceil(cx+w/z)),y0=Math.max(0,Math.floor(cy)),y1=Math.min(N-1,Math.ceil(cy+h/z));
+ for(let l=0;l<3;l++){ctx.globalAlpha=S.layer==l?1:(l==2?.7:l?.85:.8);
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const id=M.p[l][y*N+x];if(!id)continue;if(l==2){const px=(x-cx)*z,py=(y-cy)*z;ctx.fillStyle='#55ffff';if(z>=14){ctx.font=`${z*.34}px VT323,monospace`;ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(id.toString(16).toUpperCase(),px+z-1,py+z)}else ctx.fillRect(px+z*.65,py+z*.65,Math.max(2,z*.25),Math.max(2,z*.25));continue}art(ctx,(x-cx)*z,(y-cy)*z,z,l,id)}}
+ ctx.globalAlpha=1;
+ if(S.grid&&z>=8){ctx.strokeStyle=css('--grid');ctx.lineWidth=1;ctx.beginPath();
+  for(let x=x0;x<=x1+1;x++){const px=Math.round((x-cx)*z)+.5;ctx.moveTo(px,(y0-cy)*z);ctx.lineTo(px,(y1+1-cy)*z)}
+  for(let y=y0;y<=y1+1;y++){const py=Math.round((y-cy)*z)+.5;ctx.moveTo((x0-cx)*z,py);ctx.lineTo((x1+1-cx)*z,py)}ctx.stroke()}
+ if(hover){ctx.strokeStyle=css('--ac');ctx.lineWidth=2;ctx.strokeRect((hover.x-cx)*z+1,(hover.y-cy)*z+1,z-2,z-2)}
+ ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(-cx*z-.5,-cy*z-.5,N*z+1,N*z+1);
+}
+let raf=0;const redraw=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(draw)};
+function fit(){const w=cv.width/dpr,h=cv.height/dpr,z=Math.max(4,Math.min(w,h)/N*.98);S.cam={z,x:-(w/z-N)/2,y:-(h/z-N)/2};redraw();stat()}
+let first=true;
+new ResizeObserver(()=>{dpr=window.devicePixelRatio||1;const r=$('wrap').getBoundingClientRect();cv.width=r.width*dpr;cv.height=r.height*dpr;if(first&&r.width){first=false;fit()}else redraw()}).observe($('wrap'));
+function zoom(f,px,py){const c=S.cam,w=cv.width/dpr,h=cv.height/dpr;px=px??w/2;py=py??h/2;
+ const nz=Math.min(80,Math.max(3,c.z*f));c.x+=px/c.z-px/nz;c.y+=py/c.z-py/nz;c.z=nz;redraw();stat()}
+
+/* ---------- interface ---------- */
+function stat(){}
+const SIZES=[64,128,256,512];
+function sizeSel(){const a=SIZES.includes(N)?SIZES:SIZES.concat([N]).sort((x,y)=>x-y);$('sz').innerHTML=a.map(v=>`<option value="${v}">${v}×${v}</option>`).join('');$('sz').value=N}
+function resize(n){const M=S.maps[S.cur];if(n==M.n)return;push();const o=M.n,q=[0,1,2].map(()=>new Uint16Array(n*n));
+ for(let l=0;l<3;l++)for(let y=0;y<Math.min(o,n);y++)for(let x=0;x<Math.min(o,n);x++)q[l][y*n+x]=M.p[l][y*o+x];
+ M.p=q;M.n=n;N=n;ui();fit()}
+$('sz').onchange=e=>resize(+e.target.value);
+const GAMES=[['wl','Wolf 3D',['WL6','WL1','WL3']],['sod','Spear',['SOD','SDM']],['sd2','Miss. 2',['SD2']],['sd3','Miss. 3',['SD3']]];
+S.game='wl';const curExt=()=>(GAMES.find(g=>g[0]==S.game)||GAMES[0])[2];
+function gameSel(){$('gm').innerHTML=GAMES.map(g=>`<option value="${g[0]}">${g[1]}</option>`).join('');$('gm').value=S.game}
+$('gm').onchange=e=>{S.game=e.target.value;ui()};
+const SPEC=[[0,90],[0,91],[0,92],[0,93],[0,94],[0,95],[0,100],[0,101],[0,21],[0,106],[0,107],[1,98],[1,99],...[0,1,2,3,4,5,6,7].map(i=>[1,90+i])];
+const specList=()=>SPEC,isSpec=(l,id)=>specList().some(a=>a[0]==l&&a[1]==id);
+const ITEMS=[43,44,47,48,49,50,51,52,53,54,55,56];
+function nm(l,id){if(l==2)return t('tabI');if(l==1&&isSpear()&&spN(id))return loc(spN(id)[1]);const e=l?ent(id):null,c=S.custom[l+':'+(e?e.b:id)];
+ if(e)return loc(e.n)+' · '+DIFFN[LANG][e.d]+' · '+POSTN[LANG][+e.pa]+' '+DIRS[e.dir];
+ if(c&&c.name)return c.name;
+ if(l)return OBJ[id]?loc(OBJ[id][1]):'ID '+id;
+ return D0[id]?loc(D0[id]):id<=63?t('wall')+' '+id:'ID '+id}
+function customIds(l){return Object.keys(S.custom).map(k=>k.split(':').map(Number)).filter(k=>k[0]==l).map(k=>k[1])}
+function objIds(){const r=[19,20,21,22,...ITEMS];
+ for(const e of ENE)for(let d=0;d<4;d++)r.push(e[1]+e[2]*S.diff+d+S.post*4);
+ r.push(...(isSpear()?SODB:[214,196,215,197,179,178,160,224,225,226,227]),124);
+ for(const k of Object.keys(OBJ).map(Number))if(!r.includes(k)&&!ent(k)&&!isSpec(1,k)&&!(isSpear()?WLONLY.includes(k):SODONLY.includes(k)))r.push(k);
+ for(const k of customIds(1))if(!r.includes(k)&&!ent(k)&&!isSpec(1,k))r.push(k);return r}
+const wallIds=()=>WALLS.concat(customIds(0).filter(i=>!WALLS.includes(i)&&!isSpec(0,i)));
+function pickSync(id){const l=S.layer;S.tab=l==2?3:isSpec(l,id)?2:l;if(l){const e=ent(id);if(e){S.diff=e.d;S.post=+e.pa}}}
+function fixEne(){const e=ent(S.sel[1]);if(e){const x=ENE.find(z=>z[1]==e.b);S.sel[1]=x[1]+x[2]*S.diff+e.dir+S.post*4}pal()}
+function setTab(i){S.tab=i;if(i<2)S.layer=i;if(i==3)S.layer=2;ui()}
+function pal(){if(S.tab<2)S.layer=S.tab;if(S.tab==3)S.layer=2;
+ [0,1,2].forEach(i=>$('pl'+i).classList.toggle('on',S.tab==i));
+ const ct=$('ct');ct.innerHTML='';
+ if(S.tab==1){ct.innerHTML='<select id="sd">'+DIFFN[LANG].map((d,i)=>`<option value="${i}">${d}</option>`).join('')+'</select><select id="sp">'+POSTN[LANG].map((d,i)=>`<option value="${i}">${d}</option>`).join('')+'</select>';
+  $('sd').value=S.diff;$('sp').value=S.post;$('sd').onchange=e=>{S.diff=+e.target.value;fixEne()};$('sp').onchange=e=>{S.post=+e.target.value;fixEne()}}
+ const list=S.tab==0?wallIds().map(i=>[0,i]):S.tab==1?objIds().map(i=>[1,i]):S.tab==3?[...new Set([...S.maps[S.cur].p[2]].filter(v=>v))].sort((a,b)=>a-b).slice(0,300).map(i=>[2,i]):specList(),g=$('grid'),top=g.scrollTop;g.innerHTML='';
+ for(const [ll,id] of list){const b=document.createElement('button'),c=document.createElement('canvas');c.width=c.height=64;
+  art(c.getContext('2d'),0,0,64,ll,id,true);b.append(c);b.title=id+' · '+nm(ll,id);b.classList.toggle('on',S.sel[ll]==id&&S.layer==ll);
+  b.onclick=()=>{S.layer=ll;S.sel[ll]=id;if(['eraser','hand','pick'].includes(S.tool))S.tool='pen';ui()};g.append(b)}
+ g.scrollTop=top;
+ const p=$('pc').getContext('2d'),L=S.layer;p.imageSmoothingEnabled=false;p.fillStyle='#000';p.fillRect(0,0,128,128);
+ for(let a=0;a<8;a++)for(let k=0;k<8;k++)if((a+k)%2){p.fillStyle='#1c1c28';p.fillRect(a*16,k*16,16,16)}
+ art(p,0,0,128,L,S.sel[L],true);$('sel').textContent=S.sel[L]+' · 0x'+S.sel[L].toString(16).toUpperCase()+' · '+nm(L,S.sel[L]);$('cd').value=S.sel[L]}
+function ui(){N=S.maps[S.cur].n;sizeSel();gameSel();
+ document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==S.tool||(b.dataset.t=='grid'&&S.grid)));
+ $('ms').innerHTML=S.maps.map((m,i)=>`<option value="${i}">${i+1}. ${m.name.replace(/</g,'&lt;')}</option>`).join('');$('ms').value=S.cur;
+ cv.style.cursor=S.tool=='hand'?'grab':'crosshair';pal();redraw()}
+function applyLang(){document.documentElement.lang=['en','es','pt-BR'][LANG];
+ document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
+ document.querySelectorAll('[data-ti]').forEach(e=>{e.title=t(e.dataset.ti);e.setAttribute('aria-label',e.title)});
+ $('madd').innerHTML=ic('M12 5v14M5 12h14');setPe();$('lg').textContent=LN[LANG];ui()}
+$('lg').onclick=()=>{LANG=(LANG+1)%3;try{localStorage.setItem('wl-lang',LANG)}catch(e){}applyLang()};
+let VIEW=0;try{VIEW=+localStorage.getItem('wl-view')||0}catch(e){}
+function applyView(f){$('app').classList.toggle('land',VIEW==1);$('vm').textContent=VIEW?'16:9':'9:16';if(f)requestAnimationFrame(()=>requestAnimationFrame(fit))}
+$('vm').onclick=()=>{VIEW^=1;try{localStorage.setItem('wl-view',VIEW)}catch(e){}applyView(true)};
+[0,1,2].forEach(i=>$('pl'+i).onclick=()=>setTab(i));
+function setPe(){$('pe').innerHTML=ic($('pal').classList.contains('big')?'M5 10l7 7 7-7':'M5 14l7-7 7 7')}
+$('pe').onclick=()=>{$('pal').classList.toggle('big');setPe();requestAnimationFrame(()=>requestAnimationFrame(fit))};
+$('cd').onchange=e=>{const v=e.target.value.trim(),n=/^0x/i.test(v)?parseInt(v,16):parseInt(v,10);if(n>=0&&n<=65535){S.sel[S.layer]=n;ui()}else $('cd').value=S.sel[S.layer]};
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const a=b.dataset.t;
+ if(a=='un')return swap(S.un,S.re);if(a=='re')return swap(S.re,S.un);
+ if(a=='grid'){S.grid=!S.grid;return ui()}
+ if(a=='zin')return zoom(1.25);if(a=='zout')return zoom(.8);if(a=='fit')return fit();
+ if(a=='clear'){push();S.maps[S.cur].p.forEach(x=>x.fill(0));ui();toast(t('cleared'));return}
+ S.tool=a;ui()});
+$('ms').onchange=e=>{S.cur=+e.target.value;S.un=[];S.re=[];ui()};
+function renameDlg(){modal(`<h2>${t('renT')}</h2><input id="rn" maxlength="16" value="${S.maps[S.cur].name.replace(/["<>&]/g,'')}" style="font:inherit;padding:4px">`,()=>{S.maps[S.cur].name=($('rn').value||'MAP').toUpperCase();ui()},t('ok'))}
+$('madd').onclick=()=>{S.maps.push(newMap(null,N));S.cur=S.maps.length-1;S.un=[];S.re=[];ui()};
+
+/* ---------- desfazer ---------- */
+const snap=()=>({i:S.cur,n:S.maps[S.cur].n,p:S.maps[S.cur].p.map(a=>a.slice())});
+function push(){S.un.push(snap());if(S.un.length>Math.max(6,Math.min(100,Math.floor(4e6/(N*N)))))S.un.shift();S.re=[]}
+function swap(from,to){const s=from.pop();if(!s)return;to.push(snap());S.cur=s.i;S.maps[s.i].p=s.p;S.maps[s.i].n=s.n;ui()}
+
+
+/* ---------- ferramentas ---------- */
+function cell(e,clamp){const r=cv.getBoundingClientRect(),c=S.cam;let x=Math.floor((e.clientX-r.left)/c.z+c.x),y=Math.floor((e.clientY-r.top)/c.z+c.y);
+ if(clamp){x=Math.min(N-1,Math.max(0,x));y=Math.min(N-1,Math.max(0,y))}return{x,y,ok:x>=0&&y>=0&&x<N&&y<N}}
+function bres(a,b,f){let{x:x0,y:y0}=a;const{x:x1,y:y1}=b,dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let er=dx+dy;
+ for(;;){f(x0,y0);if(x0==x1&&y0==y1)break;const e2=2*er;if(e2>=dy){er+=dy;x0+=sx}if(e2<=dx){er+=dx;y0+=sy}}}
+function shape(t,a,b,v,P){
+  const xa=Math.min(a.x,b.x),xb=Math.max(a.x,b.x),ya=Math.min(a.y,b.y),yb=Math.max(a.y,b.y);
+ for(let y=ya;y<=yb;y++)for(let x=xa;x<=xb;x++)if(t=='frect'||x==xa||x==xb||y==ya||y==yb)P[y*N+x]=v}
+function flood(P,x,y,v){const t=P[y*N+x];if(t==v)return;const st=[[x,y]];
+ while(st.length){const[a,b]=st.pop();if(a<0||b<0||a>=N||b>=N||P[b*N+a]!=t)continue;P[b*N+a]=v;st.push([a+1,b],[a-1,b],[a,b+1],[a,b-1])}}
+let pan=null,dr=null,space=false;
+cv.oncontextmenu=e=>e.preventDefault();
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);
+ if(e.button==1||e.button==2||S.tool=='hand'||space){pan={x:e.clientX,y:e.clientY,cx:S.cam.x,cy:S.cam.y};cv.style.cursor='grabbing';return}
+ const c=cell(e,true),t=S.tool,P=cur(),v=t=='eraser'?0:S.sel[S.layer];
+ if(t=='pick'){const id=P[c.y*N+c.x];if(id){S.sel[S.layer]=id;S.tool='pen';pickSync(id)}ui();return}
+ push();
+ if(t=='fill'){flood(P,c.x,c.y,v);redraw();return}
+ if(t=='pen'||t=='eraser'){P[c.y*N+c.x]=v;dr={t,last:c,v}}
+ else dr={t,a:c,base:P.slice(),v};
+ redraw()};
+cv.onpointermove=e=>{
+ if(pan){S.cam.x=pan.cx-(e.clientX-pan.x)/S.cam.z;S.cam.y=pan.cy-(e.clientY-pan.y)/S.cam.z;redraw();return}
+ const c=cell(e);hover=c.ok?c:null;
+ if(dr){const k=cell(e,true),P=cur();
+  if(dr.t=='pen'||dr.t=='eraser'){bres(dr.last,k,(x,y)=>P[y*N+x]=dr.v);dr.last=k}
+  else{P.set(dr.base);shape(dr.t,dr.a,k,dr.v,P)}}
+ redraw();stat()};
+const up=()=>{pan=null;dr=null;cv.style.cursor=S.tool=='hand'?'grab':'crosshair'};
+cv.onpointerup=up;cv.onpointercancel=up;cv.onpointerleave=()=>{hover=null;redraw()};
+cv.onwheel=e=>{e.preventDefault();const r=cv.getBoundingClientRect();zoom(e.deltaY<0?1.15:1/1.15,e.clientX-r.left,e.clientY-r.top)};
+addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName))return;const k=e.key.toLowerCase();
+ if(e.ctrlKey||e.metaKey){if(k=='z'){e.preventDefault();swap(S.un,S.re)}if(k=='y'){e.preventDefault();swap(S.re,S.un)}return}
+ if(k==' '){space=true;e.preventDefault();return}
+ const m={p:'pen',e:'eraser',r:'rect',b:'frect',f:'fill',i:'pick',h:'hand'};
+ if(m[k]){S.tool=m[k];ui()}else if(k=='g'){S.grid=!S.grid;ui()}else if(k=='+'||k=='=')zoom(1.25);else if(k=='-')zoom(.8);else if(k=='tab'){e.preventDefault();setTab((S.tab+1)%3)}});
+addEventListener('keyup',e=>{if(e.key==' ')space=false});
+
+/* ---------- menu ---------- */
+const menu=$('menu');
+$('fb').onclick=e=>{e.stopPropagation();if(menu.style.display=='block'){menu.style.display='none';return}const r=$('fb').getBoundingClientRect();menu.style.left=r.left+'px';menu.style.top=r.bottom+4+'px';menu.style.display='block'};
+addEventListener('click',()=>menu.style.display='none');
+menu.onclick=e=>{const a=e.target.dataset.a;if(!a)return;({
+ new(){modal('<h2>'+t('newTitle')+'</h2><p>'+t('newTxt')+'</p>',()=>{S.head=null;S.maps=[newMap()];S.cur=0;S.custom={};S.un=[];S.re=[];S.tab=0;S.layer=0;ui();fit()},t('discard'))},
+ open(){$('fo').accept='';$('fo').onchange=()=>openFiles($('fo').files);$('fo').value='';$('fo').click()},
+ imp:dlgImport,sav:saveProject,ren:renameDlg,exp:dlgExport})[a]()};
+
+function modal(h,ok,okTxt){const b=$('box');b.innerHTML=h+`<div class="r"><button class="b" id="mc">${t('cancel')}</button><button class="b p" id="mo">${okTxt}</button></div>`;$('ov').style.display='flex';
+ $('mc').onclick=()=>$('ov').style.display='none';$('mo').onclick=async()=>{await ok();$('ov').style.display='none'}}
+
+/* ---------- salvar / baixar ---------- */
+let dlc=null;async function getDl(){try{if(typeof claude!='undefined')dlc=dlc||await claude.use('downloads')}catch(e){}return dlc}
+async function save(name,data){const d=await getDl();
+ if(d){try{await d.save({filename:name,data});toast(t('saved',name))}catch(e){if(e.code!='declined')toast(t('saveFail',e.message||e.code))}return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));a.download=name;a.click()}
+function saveProject(){const o={v:1,game:S.game,head:S.head?{tag:S.head.tag,tail:[...S.head.tail]}:null,maps:S.maps.map(m=>({name:m.name,n:m.n,p0:[...m.p[0]],p1:[...m.p[1]],p2:[...(m.p[2]||[])]})),custom:{}};
+ for(const k in S.custom)o.custom[k]={name:S.custom[k].name,src:S.custom[k].src};
+ save('projeto-wolf.json',JSON.stringify(o))}
+function loadProject(o){S.head=o.head?{tag:o.head.tag,tail:Uint8Array.from(o.head.tail||[])}:null;if(o.game&&GAMES.some(g=>g[0]==o.game))S.game=o.game;S.maps=o.maps.map(m=>({name:m.name,n:m.n||Math.round(Math.sqrt(m.p0.length)),p:[Uint16Array.from(m.p0),Uint16Array.from(m.p1),Uint16Array.from(m.p2||new Array(m.p0.length).fill(0))]}));S.cur=0;S.custom={};
+ for(const k in o.custom)addImg(k,o.custom[k].name,o.custom[k].src);S.un=[];S.re=[];ui();fit()}
+let pq=0;function addImg(k,name,src){const img=new Image();img.onload=()=>{cancelAnimationFrame(pq);pq=requestAnimationFrame(()=>{pal();redraw()})};img.src=src;S.custom[k]={name,src,img}}
+
+/* ---------- importar VSWAP do Wolf3D ---------- */
+function dlgImport(){modal(`<h2>${t('impTitle')}</h2><input id="if" type="file" multiple><p>${t('impTxt1')}</p><p>${t('impTxt2')}</p>`,()=>importWL($('if').files),t('doImport'))}
+const WOLFPAL=(()=>{const h='0000000808080c0c0c1414141c1c1c2424242828283030303838383c3c3c4545454d4d4d5555555959596161616969697171717575757d7d7d8686868a8a8a9292929a9a9aa2a2a2a6a6a6aeaeaebababac7c7c7d3d3d3dbdbdbe7e7e7f3f3f3ff0000ef0000e30000d70000cb0000be0000b20000a600009a00008a00007d00007100006500005900004d0000410000ffdbdbffbabaff9e9eff7d7dff5d5dff4141ff2020ff1010452c184d341c553c245d4528614d2c695530715d3879653cffffdbffffbaffff9effff7dfffb5dfff741fff720fff700e7db00cfc700b6ae009e9e00868600716d00595500414100d3ff5dc7ff41b6ff20a2ff0092e70082cf0075b600619e00dbffdbbaf7ba9eef9e7de77d5ddb5d3cd33c20cb2000c30000b60000ae0000a200009a00008e00008600007900007100006500005d00005100004900003c000834080c280c142014dbffffbaffff9effff7dffff5dffff3cffff20ffff00ffff00e7e700cfcf00b6b6009e9e008a8a0071710059590041415dbeff41b2ff20aaff009eff008ee7007dcf006db6005d9edbdbffbabeff9e9eff7d82ff5d61ff4141ff2024ff0004ff0000ff0000ef0000e30000d70000cb0000be0000b20000a600009a00008a00007d00007100006500005900004d0000413420003c2400492800512c005930006534006d3800793c008241008a4500964900a2550cb26118be6d24cb7930d78638e79245f39e51ffaa5dffba71ffc78affd79effe3b28a7149967d51a68a5db29665bea271cbaa79dbb682e7c38ef3cf96ffebdfffe3d3ffdbc7ffd7beffcfb2ffc7a6ffbe9effba92ffb282ffa671ff9e61f3965deb8e59df8a55d38251cb7d4dbe7949b67145aa6941a2653c9e6138925d348a593082512c754d286d49245d4120553c1c493818413018382c1428200cff0800ff1000ff2000ff3400ff4500ff5500ff6500ff7500ff8a00ff9a00ffaa00ffba00ffcb00ffdf00ffef00ffff00ffbe00dba200b68a00926d006d5100493400241c001c1400a600a28e00ae7500be5d00cb4900d73000e31800f3ffffff',p=[];for(let i=0;i<256;i++)p.push([0,1,2].map(k=>parseInt(h.substr(i*6+k*2,2),16)));return p})();
+async function importWL(fl){fl=[...fl];const vs=fl.find(f=>/vswap/i.test(f.name));if(!vs)return toast(t('noVswap'));
+ let pal=null;const pf=fl.find(f=>f!==vs);
+ if(pf){const b=new Uint8Array(await pf.arrayBuffer());if(b.length>=768){let m=0;for(let i=0;i<768;i++)m=Math.max(m,b[i]);const k=m<=63?4:1;pal=[];for(let i=0;i<256;i++)pal.push([b[i*3]*k,b[i*3+1]*k,b[i*3+2]*k])}}
+ pal=pal||WOLFPAL;
+ const u=new Uint8Array(await vs.arrayBuffer()),v=new DataView(u.buffer),n=v.getUint16(0,true),sp=v.getUint16(2,true);
+ if(n<10||sp>n||u.length<6+n*6)return toast(t('badVswap'));
+ const off=i=>v.getUint32(6+i*4,true),len=i=>v.getUint16(6+n*4+i*2,true);
+ const mk=()=>{const c=document.createElement('canvas');c.width=c.height=64;return c};
+ const wall=ci=>{const o=off(ci);if(ci<0||ci>=sp||!o||o+4096>u.length)return null;const c=mk(),x=c.getContext('2d'),im=x.createImageData(64,64);
+  for(let a=0;a<64;a++)for(let y=0;y<64;y++){const p=pal[u[o+a*64+y]],j=(y*64+a)*4;im.data[j]=p[0];im.data[j+1]=p[1];im.data[j+2]=p[2];im.data[j+3]=255}
+  x.putImageData(im,0,0);return c.toDataURL()};
+ const spr=k=>{const ci=sp+k,o=ci<n?off(ci):0;if(!o||!len(ci))return null;try{const lp=v.getUint16(o,true),rp=v.getUint16(o+2,true),c=mk(),x=c.getContext('2d'),im=x.createImageData(64,64);
+  for(let col=lp;col<=rp&&col<64;col++){let p=o+v.getUint16(o+4+(col-lp)*2,true);
+   for(let g=0;g<64;g++){const e=v.getUint16(p,true);if(!e)break;const cr=v.getInt16(p+2,true),st=v.getUint16(p+4,true)>>1;p+=6;
+    for(let y=st;y<(e>>1)&&y<64;y++){const q=pal[u[o+cr+y]],j=(y*64+col)*4;im.data[j]=q[0];im.data[j+1]=q[1];im.data[j+2]=q[2];im.data[j+3]=255}}}
+  x.putImageData(im,0,0);return c.toDataURL()}catch(e){return null}};
+ let cw=0,co=0;const put=(l,id,nm,src)=>{if(src){addImg(l+':'+id,nm,src);l?co++:cw++}};
+ for(let t=1;t<=63;t++)put(0,t,'',wall(2*t-2));
+ const door={90:sp-7,91:sp-8,92:sp-1,93:sp-2,94:sp-1,95:sp-2,100:sp-3,101:sp-4};
+ for(const d in door)put(0,+d,'',wall(door[d]));
+ const ex=((vs.name.match(/\.(\w+)$/)||[])[1]||'').toLowerCase(),SD=/^(sod|sdm|sd2|sd3)$/.test(ex)||(!/^wl/.test(ex)&&isSpear());S.game=/^sd[23]$/.test(ex)?ex:/^(sod|sdm)$/.test(ex)?'sod':SD?S.game:'wl';
+ for(let i=0;i<(SD?52:48);i++)put(1,23+i,'',spr(2+i));
+ for(const [id,k] of (SD?[[108,54],[134,103],[126,142],[216,191],[116,242]]:[[108,50],[134,99],[126,139],[216,188],[116,238]]))put(1,id,'',spr(k));
+ put(1,124,'',spr(SD?99:95));for(const [id,k] of (SD?[[125,326],[143,337],[142,349],[161,362],[107,385],[106,377]]:[[214,296],[196,307],[215,360],[197,385],[179,396],[178,334],[160,321],[224,288],[225,290],[226,292],[227,294]]))put(1,id,'',spr(k));
+ S.layer=0;S.tab=0;S.sel=[1,19,0];ui();toast(t('impDone',cw,co,'.'))}
+
+/* ---------- formato WL6 ---------- */
+let RTAG=0xABCD;
+function pack(a){const r=[a.length*2];
+ for(let i=0;i<a.length;){const v=a[i];let n=1;while(i+n<a.length&&a[i+n]==v&&n<65535)n++;
+  if(n>=3||v==RTAG)r.push(RTAG,n,v);else for(let k=0;k<n;k++)r.push(v);i+=n}
+ const o=[(r.length*2)&255,(r.length*2)>>8];
+ for(const w of r){const h=w>>8,l=w&255;if(h==0xA7||h==0xA8)o.push(0,h,l);else o.push(l,h)}
+ return Uint8Array.from(o)}
+function rlewW(a){const r=[];for(let i=0;i<a.length;){const v=a[i];let n=1;while(i+n<a.length&&a[i+n]==v&&n<65535)n++;if(n>=3||v==RTAG)r.push(RTAG,n,v);else for(let k=0;k<n;k++)r.push(v);i+=n}return r}
+const w2b=r=>{const b=new Uint8Array(r.length*2);r.forEach((w,i)=>{b[i*2]=w&255;b[i*2+1]=w>>8});return b};
+const packR=a=>w2b([a.length*2,...rlewW(a)]),rlewRaw=a=>w2b(rlewW(a));
+function rlewRead(u,off,len,tag,sz){const out=[],end=Math.min(off+len,u.length);let p=off;
+ while(out.length<sz&&p+1<end){const w=u[p]|u[p+1]<<8;p+=2;if(w==tag){const n=u[p]|u[p+1]<<8,v=u[p+2]|u[p+3]<<8;p+=4;for(let k=0;k<n&&out.length<sz;k++)out.push(v)}else out.push(w)}
+ while(out.length<sz)out.push(0);return Uint16Array.from(out)}
+function unpack(u,s,tag,sz,mode){const rd=p=>u[p]|u[p+1]<<8,f=rd(s),g=rd(s+2);
+ if(mode=='t'||(mode!='g'&&f==sz*2&&g!=sz*2))return rlewRead(u,s+2,u.length-s-2,tag,sz);
+ const len=f,o=[];let p=s+2;
+ while(o.length*2<len){const c=u[p],h=u[p+1];p+=2;
+  if(h==0xA7||h==0xA8){if(c==0)o.push(u[p++]|h<<8);else if(h==0xA7){const f2=u[p++];for(let i=0;i<c;i++)o.push(o[o.length-f2])}else{const f2=u[p]|u[p+1]<<8;p+=2;for(let i=0;i<c;i++)o.push(o[f2+i])}}
+  else o.push(c|h<<8)}
+ const out=[];let i=1;while(out.length<sz&&i<o.length){const w=o[i++];if(w==tag){const n=o[i++],v=o[i++];for(let k=0;k<n;k++)out.push(v)}else out.push(w)}
+ while(out.length<sz)out.push(0);return Uint16Array.from(out)}
+function build(ms,kind){RTAG=S.head?S.head.tag:0xABCD;const tl=S.head?S.head.tail:new Uint8Array(0),hd=new Uint8Array(402+tl.length),hv=new DataView(hd.buffer);hv.setUint16(0,RTAG,true);for(let i=0;i<100;i++)hv.setInt32(2+i*4,-1,true);hd.set(tl,402);
+ const parts=[new TextEncoder().encode('TED5v1.0')];let pos=8;
+ ms.forEach((m,i)=>{const f=kind=='t'?packR:pack,pk=[f(m.p[0]),f(m.p[1]),f(m.p[2]||new Uint16Array(4096))],st=[];
+  for(const q of pk){st.push(pos);parts.push(q);pos+=q.length}
+  const h=new DataView(new ArrayBuffer(38));st.forEach((v,k)=>{h.setInt32(k*4,v,true);h.setUint16(12+k*2,pk[k].length,true)});
+  h.setUint16(18,64,true);h.setUint16(20,64,true);for(let k=0;k<16;k++)h.setUint8(22+k,k<m.name.length?m.name.charCodeAt(k)&127:0);
+  hv.setInt32(2+i*4,pos,true);parts.push(new Uint8Array(h.buffer));pos+=38});
+ return{gm:new Blob(parts),mh:hd}}
+function crc32(b){const t=crc32.t||(crc32.t=Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0}));let r=-1;for(const x of b)r=t[(r^x)&255]^(r>>>8);return(r^-1)>>>0}
+function zip(fs){const en=new TextEncoder(),L=[],C=[];let off=0;
+ for(const f of fs){const n=en.encode(f.n),c=crc32(f.d),z=f.d.length;
+  const a=new DataView(new ArrayBuffer(30));a.setUint32(0,0x04034b50,true);a.setUint16(4,20,true);a.setUint16(12,0x21,true);a.setUint32(14,c,true);a.setUint32(18,z,true);a.setUint32(22,z,true);a.setUint16(26,n.length,true);
+  const b=new DataView(new ArrayBuffer(46));b.setUint32(0,0x02014b50,true);b.setUint16(4,20,true);b.setUint16(6,20,true);b.setUint16(14,0x21,true);b.setUint32(16,c,true);b.setUint32(20,z,true);b.setUint32(24,z,true);b.setUint16(28,n.length,true);b.setUint32(42,off,true);
+  L.push(a.buffer,n,f.d);C.push(b.buffer,n);off+=30+n.length+z}
+ let cs=0;for(const x of C)cs+=x.byteLength||x.length;
+ const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,fs.length,true);e.setUint16(10,fs.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+ return new Blob([...L,...C,e.buffer],{type:'application/zip'})}
+const FMT=[['WL6','Wolfenstein 3D'],['WL1','Wolfenstein 3D (shareware)'],['WL3','Wolfenstein 3D (3 episodes)'],['SOD','Spear of Destiny'],['SDM','Spear of Destiny (demo)'],['SD2','Spear of Destiny: Mission 2 (Return to Danger)'],['SD3','Spear of Destiny: Mission 3 (Ultimate Challenge)']];
+async function wad(ls){let off=12;const parts=[],dir=new DataView(new ArrayBuffer(16*ls.length)),hd=new DataView(new ArrayBuffer(12));
+ ls.forEach((l,i)=>{dir.setInt32(i*16,off,true);dir.setInt32(i*16+4,l.d.length,true);for(let k=0;k<8;k++)dir.setUint8(i*16+8+k,k<l.n.length?l.n.charCodeAt(k):0);parts.push(l.d);off+=l.d.length});
+ 'PWAD'.split('').forEach((c,i)=>hd.setUint8(i,c.charCodeAt(0)));hd.setInt32(4,ls.length,true);hd.setInt32(8,off,true);
+ return new Uint8Array(await new Blob([hd.buffer,...parts,dir.buffer]).arrayBuffer())}
+function planesLump(m){const n=m.n,nm=new TextEncoder().encode(m.name.slice(0,16)||'MAPA'),b=new Uint8Array(18+nm.length+n*n*6),v=new DataView(b.buffer);
+ 'WDC3.1'.split('').forEach((c,i)=>b[i]=c.charCodeAt(0));v.setInt32(6,1,true);v.setUint16(10,3,true);v.setUint16(12,nm.length,true);b.set(nm,14);
+ const o=14+nm.length;v.setUint16(o,n,true);v.setUint16(o+2,n,true);
+ for(let k=0;k<3;k++)for(let i=0;i<n*n;i++)v.setUint16(o+4+(k*n*n+i)*2,m.p[k][i],true);return b}
+function textmap(m,ids){const n=m.n,ix=new Map(ids.map((id,i)=>[id,i])),en=new TextEncoder();let t=`namespace = "Wolf3D";\nwidth = ${n};\nheight = ${n};\ntileSize = 64;\nname = "${m.name.replace(/"/g,'')}";\nplane\n{\n depth = 64;\n}\n`,ign=0;
+ for(const id of ids){const x=`"W${id}"`;t+=`tile\n{\n textureEast = ${x};\n textureNorth = ${x};\n textureWest = ${x};\n textureSouth = ${x};\n}\n`}
+ t+='sector\n{\n textureCeiling = "-";\n textureFloor = "-";\n}\nzone\n{\n}\nplanemap\n{\n';
+ const rows=[];for(let y=0;y<n;y++){const r=[];for(let x=0;x<n;x++){const v=m.p[0][y*n+x];if(v&&!ix.has(v))ign++;r.push((ix.has(v)?ix.get(v):-1)+',0,0')}rows.push(r.join(', '))}
+ t+=rows.join(',\n')+'\n}\n';const ang={19:90,20:0,21:270,22:180};
+ for(let i=0;i<n*n;i++){const v=m.p[1][i];if(!v)continue;if(ang[v]==null){ign++;continue}
+  t+=`thing\n{\n x = ${i%n+.5};\n y = ${Math.floor(i/n)+.5};\n z = 0;\n type = 1;\n angle = ${ang[v]};\n skill1 = true;\n skill2 = true;\n skill3 = true;\n skill4 = true;\n}\n`}
+ return{d:en.encode(t),ign}}
+async function png(id){const c=document.createElement('canvas');c.width=c.height=64;art(c.getContext('2d'),0,0,64,0,id);const b=await new Promise(r=>c.toBlob(r,'image/png'));return new Uint8Array(await b.arrayBuffer())}
+function dlgExport(){const row='style="flex-direction:row;align-items:center;gap:8px"',fm=FMT.slice().sort((a,b)=>curExt().includes(b[0])-curExt().includes(a[0]));
+ modal(`<h2>${t('expTitle')}</h2>
+<label ${row}><input type="checkbox" id="xp" checked>${t('expWad')}</label>
+<label ${row}><input type="checkbox" id="xu">${t('expUwmf')}</label>
+<p>${t('expClassic')}:</p>
+${fm.map(f=>`<label ${row}><input type="checkbox" class="fx" value="${f[0]}">${f[0]}${curExt().includes(f[0])?' ★':''} · ${f[1]}</label>`).join('')}
+<label ${row}><input type="checkbox" id="xh" checked>${t('expHead')}</label>
+<div class="r" style="justify-content:flex-start"><button class="b" id="fa">${t('all')}</button><button class="b" id="fn">${t('none')}</button></div>
+<p>${t('expNote')}</p>`,async()=>{
+ const xs=[...document.querySelectorAll('.fx:checked')].map(x=>x.value),files=[],ms=S.maps.slice(0,99),mk=i=>'MAP'+String(i+1).padStart(2,'0');
+ if($('xp').checked)files.push({n:'mapas-ecwolf.wad',d:await wad(ms.flatMap((m,i)=>[{n:mk(i),d:new Uint8Array(0)},{n:'PLANES',d:planesLump(m)}]))});
+ if($('xu').checked){const ids=[...new Set(ms.flatMap(m=>[...m.p[0]]))].filter(v=>v>=1&&v<=63).sort((a,b)=>a-b),ls=[{n:'TX_START',d:new Uint8Array(0)}];let ig=0;
+  for(const id of ids)ls.push({n:'W'+id,d:await png(id)});ls.push({n:'TX_END',d:new Uint8Array(0)});
+  ms.forEach((m,i)=>{const x=textmap(m,ids);ig+=x.ign;ls.push({n:mk(i),d:new Uint8Array(0)},{n:'TEXTMAP',d:x.d},{n:'ENDMAP',d:new Uint8Array(0)})});
+  files.push({n:'mapas-uwmf.wad',d:await wad(ls)});if(ig)toast(t('uwIgn',ig))}
+ if(xs.length){const c=S.maps.filter(m=>m.n==64).slice(0,100);if(!c.length)toast(t('no64'));else{const b=build(c,'g'),gm=new Uint8Array(await b.gm.arrayBuffer());
+  for(const x of xs){files.push({n:'GAMEMAPS.'+x,d:gm});if($('xh').checked)files.push({n:'MAPHEAD.'+x,d:b.mh})}}}
+ if(!files.length)return;
+ if(files.length==1&&!(await getDl()))await save(files[0].n,files[0].d);
+ else await save(files.length==1?files[0].n+'.zip':'mapas-exportados.zip',zip(files))},t('doExport'));
+ $('fa').onclick=()=>document.querySelectorAll('.fx').forEach(c=>c.checked=true);$('fn').onclick=()=>document.querySelectorAll('.fx').forEach(c=>c.checked=false)}
+
+/* ---------- abrir mapa ---------- */
+function parseMap(G,gv,o,tag,mode){const ps=[0,1,2].map(k=>gv.getInt32(o+k*4,true)),pl=[0,1,2].map(k=>gv.getUint16(o+12+k*2,true)),w=gv.getUint16(o+18,true),h=gv.getUint16(o+20,true);
+ let nm='';for(let k=0;k<16;k++){const c=G[o+22+k];if(!c)break;nm+=String.fromCharCode(c)}
+ const n=Math.max(w,h,1);return{name:nm,n,p:[0,1,2].map(k=>{const a=new Uint16Array(n*n);if(pl[k]>0&&ps[k]>0){const u=unpack(G,ps[k],tag,w*h,mode);for(let y=0;y<h;y++)for(let x=0;x<w;x++)a[y*n+x]=u[y*w+x]}return a})}}
+function scanHeaders(G){const gv=new DataView(G.buffer),r=[];
+ for(let p=0;p+38<=G.length;){const a=gv.getInt32(p,true),b=gv.getInt32(p+4,true),c=gv.getInt32(p+8,true),la=gv.getUint16(p+12,true),lb=gv.getUint16(p+14,true),lc=gv.getUint16(p+16,true),w=gv.getUint16(p+18,true),h=gv.getUint16(p+20,true);
+  let ok=a>=4&&b>=a+la&&(lc==0||c>=b+lb)&&la>2&&lb>2&&a+la<=G.length&&b+lb<=G.length&&w>=2&&w<=1024&&h>=2&&h<=1024&&G[p+22]>32&&G[p+22]<127;
+  for(let k=23;ok&&k<38;k++){const v=G[p+k];if(v&&(v<32||v>126))ok=false}
+  if(ok){r.push(p);p+=38}else p++}
+ return r}
+function done(maps){S.head=null;S.maps=maps;S.cur=0;S.un=[];S.re=[];ui();fit();toast(t('opened',maps.length))}
+function openWad(u){const v=new DataView(u.buffer),nl=v.getInt32(4,true),dof=v.getInt32(8,true),maps=[];
+ for(let i=0;i<nl;i++){const b=dof+i*16;let ln='';for(let k=0;k<8;k++){const c=u[b+8+k];if(!c)break;ln+=String.fromCharCode(c)}
+  const o=v.getInt32(b,true),sz=v.getInt32(b+4,true);if(ln.toUpperCase()!='PLANES'||sz<18)continue;
+  const np=v.getUint16(o+10,true),nlen=v.getUint16(o+12,true);let nn='';for(let k=0;k<nlen;k++)nn+=String.fromCharCode(u[o+14+k]);
+  const w=v.getUint16(o+14+nlen,true),h=v.getUint16(o+16+nlen,true),n=Math.max(w,h,1),base=o+18+nlen;
+  maps.push({name:nn||'MAP',n,p:[0,1,2].map(k=>{const a=new Uint16Array(n*n);if(k<np)for(let y=0;y<h;y++)for(let x=0;x<w;x++)a[y*n+x]=v.getUint16(base+(k*w*h+y*w+x)*2,true);return a})})}
+ if(!maps.length)return toast(t('wadNo'));done(maps)}
+async function openFiles(fl){fl=[...fl];if(!fl.length)return;
+ const pj=fl.find(f=>/\.json$/i.test(f.name));
+ if(pj){try{loadProject(JSON.parse(await pj.text()));toast(t('projOpen'))}catch(e){toast(t('projBad'))}return}
+ const wd=fl.find(f=>/\.wad$/i.test(f.name));if(wd)return openWad(new Uint8Array(await wd.arrayBuffer()));
+ const gm=fl.find(f=>/gamemaps/i.test(f.name)),mh=fl.find(f=>/maphead/i.test(f.name));
+ if(!gm)return toast(t('openHelp'));
+ const ex=((/\.(\w+)$/.exec(gm.name)||[])[1]||'').toUpperCase(),gg=GAMES.find(g=>g[2].includes(ex));if(gg)S.game=gg[0];
+ const G=new Uint8Array(await gm.arrayBuffer()),gv=new DataView(G.buffer);let tag=0xABCD,offs=[],H=null;
+ if(mh){H=new Uint8Array(await mh.arrayBuffer());const hv=new DataView(H.buffer);tag=hv.getUint16(0,true);for(let i=0;i<100&&2+i*4+4<=H.length;i++){const o=hv.getInt32(2+i*4,true);if(o>0)offs.push(o)}}
+ else offs=scanHeaders(G);
+ const mode='',maps=[],info=` [${gm.name} ${G.length} B${mh?', '+mh.name+' '+H.length+' B':''}]`;let bad=0,why='';
+ for(const o of offs){try{if(o+38>G.length)throw new Error('offset '+o);maps.push(parseMap(G,gv,o,tag,mode))}catch(e){bad++;why=e.message||String(e)}}
+ if(!maps.length)return toast((mh?(offs.length?t('readFail'):t('noMaps')):t('noHead'))+info+(why?' '+why:''));
+ done(maps);S.head=mh?{tag,tail:H.slice(402)}:null;if(bad)toast(t('opened',maps.length)+' · '+bad+' ✗'+info)}
+
+
+/* ---------- ícone e botões de janela ---------- */
+const ICON=['................', '....kkkkkkkk....', '..kkggggggggkk..', '.kghhhgggggggGk.', '.kgggggggggggGk.', '.kGGGGGGGGGGGGk.', '.kkbbbbbbbbbbkk.', '.ksssssssssssSk.', '.kswessssswessk.', '.kssssssssssssk.', '.kssssSssSssssk.', '.kssssmmmmssssk.', '..kssssssssssk..', '...kkssssssskk..', '....kkkkkkkk....', '................'],ICOL={k:'#000',g:'#9a9a9a',h:'#dcdcdc',G:'#575757',b:'#6b3b1b',s:'#f0b080',S:'#c07848',w:'#fff',e:'#2a4fd0',m:'#b02020'};
+(()=>{const x=$('logo').getContext('2d');ICON.forEach((r,j)=>[...r].forEach((ch,i)=>{if(ch!='.'){x.fillStyle=ICOL[ch];x.fillRect(i,j,1,1)}}))})();
+const isFs=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+function fsUi(){const on=isFs();$('wmax').classList.toggle('on',on);$('wmin').disabled=!on;requestAnimationFrame(()=>requestAnimationFrame(()=>{if(S.maps.length)fit()}))}
+$('wmax').innerHTML=ic('M6 6h12v12H6z M6 9h12');$('wmin').innerHTML=ic('M6 17h12');
+$('wmax').onclick=async()=>{if(isFs())return;const e=document.documentElement;try{if(e.requestFullscreen)await e.requestFullscreen({navigationUI:'hide'});else if(e.webkitRequestFullscreen)e.webkitRequestFullscreen();else throw 0}catch(x){toast(t('noFs'))}};
+$('wmin').onclick=async()=>{try{if(document.exitFullscreen)await document.exitFullscreen();else if(document.webkitExitFullscreen)document.webkitExitFullscreen()}catch(x){}};
+document.addEventListener('fullscreenchange',fsUi);document.addEventListener('webkitfullscreenchange',fsUi);fsUi();
+S.maps=[newMap('MAP 1')];applyView();applyLang();
+</script>
+</body>
+</html>
