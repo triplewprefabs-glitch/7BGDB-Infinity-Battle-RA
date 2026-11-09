@@ -182,7 +182,13 @@ button:disabled{opacity:.45}
       if(!system)throw new Error('O sistema mindar-image-system não foi registrado.');
       target.addEventListener('targetFound',()=>{show('✓ MARCADOR ENCONTRADO · acompanhando posição');screenReticle.classList.add('visible');});
       target.addEventListener('targetLost',()=>{show('Marcador perdido · procurando novamente…');screenReticle.classList.remove('visible');});
-      // Projeta a posição real do alvo MindAR na tela; a mira deixa de ficar fixa no centro.
+      // Suavização visual leve para reduzir pequenos saltos da mira sem prendê-la ao centro.
+      let reticleX=null,reticleY=null;
+      target.addEventListener('targetFound',()=>{
+        reticleX=null;reticleY=null;
+        screenReticle.style.display='block';
+      });
+      // Projeta a posição real do alvo MindAR na tela.
       function updateTrackedReticle(){
         // O ciclo precisa continuar mesmo antes do targetFound; caso contrário,
         // a primeira chamada termina e a mira fica presa no centro.
@@ -198,11 +204,19 @@ button:disabled{opacity:.45}
             const y=(-worldPos.y*0.5+0.5)*window.innerHeight;
             const inside=worldPos.z>-1 && worldPos.z<1 && x>=0 && x<=window.innerWidth && y>=0 && y<=window.innerHeight;
             if(inside){
-              screenReticle.style.left=x+'px';
-              screenReticle.style.top=y+'px';
+              // Interpolação moderada: suaviza tremores sem criar atraso excessivo.
+              const smoothing=0.38;
+              if(reticleX===null || reticleY===null){reticleX=x;reticleY=y;}
+              else{
+                reticleX+=(x-reticleX)*smoothing;
+                reticleY+=(y-reticleY)*smoothing;
+              }
+              screenReticle.style.left=reticleX+'px';
+              screenReticle.style.top=reticleY+'px';
               screenReticle.style.display='block';
             }else{
               screenReticle.style.display='none';
+              reticleX=null;reticleY=null;
             }
           }
         }
