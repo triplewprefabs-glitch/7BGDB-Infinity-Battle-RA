@@ -73,7 +73,7 @@ button:disabled{opacity:.45}
 <div id="screenReticle"><span>MARCADOR DETECTADO</span></div>
 <button id="stopAR">FECHAR TESTE</button>
 <a-scene
-  mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no"
+  mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.005; filterBeta: 1500; warmupTolerance: 3; missTolerance: 8; uiLoading: no; uiScanning: no; uiError: no"
   embedded
   renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true"
   vr-mode-ui="enabled: true"
