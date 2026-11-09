@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Energy Ops — Teste MindAR do marcador original</title>
+<title>Energy Ops — Diagnóstico MindAR</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,Arial,sans-serif}
 *{box-sizing:border-box}
@@ -16,87 +16,69 @@ canvas{display:block;width:min(82vw,420px);height:min(82vw,420px);max-width:100%
 button,a.btn{display:block;width:100%;padding:13px;margin:9px 0;border:1px solid #52d8f2;border-radius:10px;background:#087da2;color:white;font-weight:800;text-align:center;text-decoration:none;font-size:14px}
 button:disabled{opacity:.45}
 .secondary{background:#10283a!important}
-#arTest{display:none;position:fixed;inset:0;background:#000;z-index:5}
-#arTest a-scene{position:absolute;inset:0}
-#arStatus{position:absolute;top:env(safe-area-inset-top,10px);left:10px;right:10px;z-index:10;padding:12px;border-radius:10px;background:#03101ddd;color:#baf6ff;font-weight:800;font-size:13px;pointer-events:none}
-#stopAR{position:absolute;z-index:11;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:auto;padding:12px 18px;background:#5b202b}
 .note{font-size:12px;color:#9db8c7}
+#arTest{visibility:hidden;position:fixed;inset:0;background:transparent;z-index:5}
+#arTest.active{visibility:visible}
+#arTest a-scene{position:absolute;inset:0;width:100%;height:100%}
+#arStatus{position:absolute;top:env(safe-area-inset-top,10px);left:10px;right:10px;z-index:100;padding:12px;border-radius:10px;background:#03101ddd;color:#baf6ff;font-weight:800;font-size:13px;pointer-events:none;white-space:pre-wrap}
+#stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:auto;padding:12px 18px;background:#5b202b}
 </style>
+<!-- Bibliotecas carregadas ANTES da cena A-Frame; defer preserva a ordem. -->
+<script defer src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body>
-<h1>ENERGY OPS · TESTE DE MARCADOR</h1>
-<p>Esta página preserva o padrão gerado pelo Energy Ops. Primeiro exporte a imagem e compile-a como alvo MindAR. Depois coloque o arquivo <b>energy-ops-marker.mind</b> na mesma pasta desta página e publique os dois no GitHub Pages.</p>
+<h1>ENERGY OPS · DIAGNÓSTICO MINDAR</h1>
+<p>Teste independente do marcador original do Energy Ops. Não usa o modo VR. Toque em iniciar e permita o acesso à câmera quando o Chrome solicitar.</p>
 
 <section class="card">
-  <h2>1. Marcador original</h2>
-  <p>O desenho abaixo é reproduzido a partir da função <code>prepareMarker()</code> do jogo. A exportação cria uma imagem quadrada de alta resolução, sem alterar o padrão.</p>
-  <canvas id="marker" width="512" height="512"></canvas>
-  <button id="download">BAIXAR MARCADOR PNG</button>
-  <p class="note">Ao imprimir, configure o tamanho físico para exatamente 15 × 15 cm, sem margens internas, sem cortar e sem esticar. Mantenha o papel plano e bem iluminado.</p>
+<h2>1. Marcador original</h2>
+<p>Este desenho reproduz o padrão gerado pelo jogo. A impressão correta é de 15 × 15 cm.</p>
+<canvas id="marker" width="512" height="512"></canvas>
+<button id="download">BAIXAR MARCADOR PNG</button>
+<p class="note">Não corte, estique ou altere o desenho do marcador.</p>
 </section>
 
 <section class="card">
-  <h2>2. Gerar o arquivo .mind</h2>
-  <ol>
-    <li>Baixe o PNG acima.</li>
-    <li>Abra o compilador oficial: <a href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" rel="noopener">MindAR Image Target Compiler</a>.</li>
-    <li>Envie o PNG e compile o alvo.</li>
-    <li>Baixe o arquivo gerado, renomeie para <b>energy-ops-marker.mind</b> e coloque-o ao lado deste HTML.</li>
-  </ol>
-  <p class="note">O compilador precisa aceitar o desenho e gerar um alvo útil. Se indicar baixa qualidade, não altere o marcador impresso: primeiro vamos avaliar o resultado e decidir como melhorar a detecção preservando o mesmo alvo físico.</p>
+<h2>2. Arquivo de rastreamento</h2>
+<p>O teste procura <b>energy-ops-marker.mind</b> no mesmo diretório desta página.</p>
+<p id="fileStatus" class="note">Verificando arquivo…</p>
 </section>
 
 <section class="card">
-  <h2>3. Testar a câmera</h2>
-  <p>Abra esta página em HTTPS no Chrome Android. O teste só inicia depois que você tocar no botão e conceder acesso à câmera.</p>
-  <button id="startAR" class="secondary">INICIAR TESTE MINDAR</button>
-  <p id="localStatus" class="note">Aguardando o arquivo energy-ops-marker.mind.</p>
+<h2>3. Teste da câmera</h2>
+<button id="startAR" class="secondary">INICIAR TESTE MINDAR</button>
+<p id="localStatus" class="note">Aguardando início.</p>
 </section>
 
 <div id="arTest">
-  <div id="arStatus">Preparando câmera…</div>
-  <button id="stopAR">PARAR TESTE</button>
-  <a-scene
-    mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no"
-    embedded
-    color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights: true"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-    <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
-      <a-ring position="0 0 0.01" radius-inner="0.30" radius-outer="0.34" color="#00eaff"
-              material="shader: flat; opacity: 0.95"></a-ring>
-      <a-box position="0 0 0.04" width="0.16" height="0.16" depth="0.04"
-             material="color: #00cfff; opacity: 0.75; transparent: true; wireframe: true"></a-box>
-      <a-text value="ENERGY OPS" position="0 -0.42 0.02" align="center"
-              color="#ffffff" width="1.4" side="double"></a-text>
-    </a-entity>
-  </a-scene>
+<div id="arStatus">Preparando teste…</div>
+<button id="stopAR">FECHAR TESTE</button>
+<a-scene
+  mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no"
+  embedded
+  renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false">
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
+    <a-ring position="0 0 0.01" radius-inner="0.30" radius-outer="0.34" color="#00eaff" material="shader: flat; opacity: 0.95"></a-ring>
+    <a-box position="0 0 0.04" width="0.16" height="0.16" depth="0.04" material="color: #00cfff; opacity: 0.75; transparent: true; wireframe: true"></a-box>
+    <a-text value="ENERGY OPS" position="0 -0.42 0.02" align="center" color="#ffffff" width="1.4" side="double"></a-text>
+  </a-entity>
+</a-scene>
 </div>
 
 <script>
 (function(){
   const canvas=document.getElementById('marker');
-  const c=canvas.getContext('2d',{willReadFrequently:true});
+  const c=canvas.getContext('2d');
   const N=25,quiet=2,cell=canvas.width/N;
   c.fillStyle='#fff';c.fillRect(0,0,canvas.width,canvas.height);
-  const module=(x,y,color)=>{
-    c.fillStyle=color;
-    c.fillRect(Math.round((x+quiet)*cell),Math.round((y+quiet)*cell),Math.ceil(cell),Math.ceil(cell));
-  };
-  const finder=(ox,oy)=>{
-    for(let y=0;y<7;y++)for(let x=0;x<7;x++){
-      const edge=x===0||x===6||y===0||y===6;
-      const center=x>=2&&x<=4&&y>=2&&y<=4;
-      module(ox+x,oy+y,edge||center?'#050505':'#fff');
-    }
-  };
+  const module=(x,y,color)=>{c.fillStyle=color;c.fillRect(Math.round((x+quiet)*cell),Math.round((y+quiet)*cell),Math.ceil(cell),Math.ceil(cell));};
+  const finder=(ox,oy)=>{for(let y=0;y<7;y++)for(let x=0;x<7;x++){const edge=x===0||x===6||y===0||y===6;const center=x>=2&&x<=4&&y>=2&&y<=4;module(ox+x,oy+y,edge||center?'#050505':'#fff');}};
   finder(0,0);finder(14,0);finder(0,14);
-  for(let i=8;i<14;i++){
-    module(i,7,i%2?'#050505':'#fff');
-    module(7,i,i%2?'#050505':'#fff');
-  }
+  for(let i=8;i<14;i++){module(i,7,i%2?'#050505':'#fff');module(7,i,i%2?'#050505':'#fff');}
   for(let y=0;y<21;y++)for(let x=0;x<21;x++){
     const inFinder=(x<7&&y<7)||(x>=14&&y<7)||(x<7&&y>=14);
     const timing=(x===7&&y>=8&&y<14)||(y===7&&x>=8&&x<14);
@@ -105,59 +87,76 @@ button:disabled{opacity:.45}
     const h=(Math.imul(x+1,374761393)^Math.imul(y+3,668265263)^Math.imul((x+1)*(y+3),2246822519))>>>0;
     if((h^(h>>>13)^(x*y*97))&1)module(x,y,'#050505');
   }
-  for(let y=13;y<=17;y++)for(let x=13;x<=17;x++){
-    const edge=x===13||x===17||y===13||y===17;
-    const center=x===15&&y===15;
-    module(x,y,edge||center?'#050505':'#fff');
-  }
-
+  for(let y=13;y<=17;y++)for(let x=13;x<=17;x++){const edge=x===13||x===17||y===13||y===17;const center=x===15&&y===15;module(x,y,edge||center?'#050505':'#fff');}
   document.getElementById('download').addEventListener('click',()=>{
     const out=document.createElement('canvas');out.width=1800;out.height=1800;
     out.getContext('2d').drawImage(canvas,0,0,1800,1800);
-    const a=document.createElement('a');a.download='energy-ops-marker-original.png';
-    a.href=out.toDataURL('image/png');a.click();
+    const a=document.createElement('a');a.download='energy-ops-marker-original.png';a.href=out.toDataURL('image/png');a.click();
   });
 
-  const status=document.getElementById('localStatus');
+  const localStatus=document.getElementById('localStatus');
+  const fileStatus=document.getElementById('fileStatus');
   const overlay=document.getElementById('arTest');
   const arStatus=document.getElementById('arStatus');
   const start=document.getElementById('startAR');
-  let scene=null,system=null,started=false;
-  function setStatus(t){arStatus.textContent=t;status.textContent=t;}
-  start.addEventListener('click',async()=>{
-    overlay.style.display='block';
-    start.disabled=true;
-    setStatus('Carregando MindAR e preparando a câmera…');
+  const scene=document.querySelector('a-scene');
+  const target=document.getElementById('trackedTarget');
+  let system=null,started=false,busy=false;
+  function show(t){arStatus.textContent=t;localStatus.textContent=t;}
+  async function checkMindFile(){
     try{
-      if(!window.AFRAME)throw new Error('A-Frame não carregou. Verifique a conexão.');
-      scene=document.querySelector('a-scene');
-      await new Promise((resolve,reject)=>{
-        if(scene.hasLoaded)return resolve();
-        scene.addEventListener('loaded',resolve,{once:true});
-        scene.addEventListener('error',()=>reject(new Error('Falha ao carregar a cena 3D.')),{once:true});
-        setTimeout(()=>reject(new Error('Tempo esgotado ao carregar a cena.')),15000);
-      });
+      const response=await fetch('./energy-ops-marker.mind',{cache:'no-store'});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const blob=await response.blob();
+      if(blob.size<1000)throw new Error('arquivo muito pequeno ('+blob.size+' bytes)');
+      fileStatus.textContent='✓ Arquivo encontrado · '+Math.round(blob.size/1024)+' KB';
+      return true;
+    }catch(e){
+      fileStatus.textContent='✕ Não consegui ler energy-ops-marker.mind: '+e.message+'. Confira se está na mesma pasta e publicado no GitHub Pages.';
+      return false;
+    }
+  }
+  checkMindFile();
+  function waitScene(){
+    return new Promise((resolve,reject)=>{
+      if(scene.hasLoaded)return resolve();
+      const timer=setTimeout(()=>reject(new Error('A-Frame demorou mais de 20 segundos para carregar.')),20000);
+      scene.addEventListener('loaded',()=>{clearTimeout(timer);resolve();},{once:true});
+      scene.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('A-Frame informou erro ao criar a cena.'));},{once:true});
+    });
+  }
+  start.addEventListener('click',async()=>{
+    if(busy||started)return;
+    busy=true;start.disabled=true;overlay.classList.add('active');
+    show('1/4 · Verificando bibliotecas…');
+    try{
+      if(!window.isSecureContext)throw new Error('A página não está em HTTPS. Abra pelo endereço github.io.');
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Este navegador não disponibilizou acesso à câmera. Abra no Chrome atualizado.');
+      if(!window.AFRAME)throw new Error('A-Frame não carregou. Verifique a internet e recarregue a página.');
+      if(!window.MINDAR)throw new Error('A biblioteca MindAR não carregou. Verifique a internet e recarregue a página.');
+      show('2/4 · Verificando arquivo .mind…');
+      if(!await checkMindFile())throw new Error('Arquivo .mind ausente ou inacessível.');
+      show('3/4 · Preparando cena…');
+      await waitScene();
       system=scene.systems['mindar-image-system'];
-      if(!system)throw new Error('Sistema MindAR não foi carregado. Confira a conexão e os arquivos da biblioteca.');
-      const target=document.getElementById('trackedTarget');
-      target.addEventListener('targetFound',()=>setStatus('✓ MARCADOR ENCONTRADO · rastreamento ativo'));
-      target.addEventListener('targetLost',()=>setStatus('Marcador fora de visão · procurando novamente…'));
+      if(!system)throw new Error('O sistema mindar-image-system não foi registrado.');
+      target.addEventListener('targetFound',()=>show('✓ MARCADOR ENCONTRADO · rastreamento ativo'));
+      target.addEventListener('targetLost',()=>show('Marcador perdido · procurando novamente…'));
+      show('4/4 · Solicitando câmera…');
       await system.start();
       started=true;
-      setStatus('Câmera ativa · aponte para o marcador original de 15 × 15 cm');
+      show('Câmera ativa · aponte para o marcador original de 15 × 15 cm');
     }catch(e){
-      setStatus('ERRO: '+(e&&e.message?e.message:String(e)));
+      show('FALHA: '+(e&&e.message?e.message:String(e)));
       start.disabled=false;
-    }
+    }finally{busy=false;}
   });
   document.getElementById('stopAR').addEventListener('click',async()=>{
     try{if(system&&started)await system.stop();}catch(e){}
-    started=false;overlay.style.display='none';start.disabled=false;
-    setStatus('Teste parado. Toque em INICIAR TESTE MINDAR para repetir.');
+    started=false;overlay.classList.remove('active');start.disabled=false;
+    localStatus.textContent='Teste encerrado. Toque em INICIAR TESTE MINDAR para repetir.';
   });
 })();
 </script>
-<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </body>
 </html>
