@@ -7,8 +7,10 @@
 <style>
 :root{color-scheme:dark;font-family:system-ui,Arial,sans-serif}
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:#06111e;color:#eafaff}
+html,body{margin:0;width:100%;min-height:100%;background:#06111e;color:#eafaff}
 body{padding:18px;max-width:760px;margin:auto}
+html,body{overflow-x:hidden}
+body.ar-running{padding:0;max-width:none;margin:0;overflow:hidden}
 h1{font-size:22px;color:#72e7ff;margin:0 0 8px}
 p,li{font-size:14px;line-height:1.5;color:#c5dbe6}
 .card{background:#0a1b2b;border:1px solid #28677d;border-radius:14px;padding:16px;margin:14px 0}
@@ -17,9 +19,17 @@ button,a.btn{display:block;width:100%;padding:13px;margin:9px 0;border:1px solid
 button:disabled{opacity:.45}
 .secondary{background:#10283a!important}
 .note{font-size:12px;color:#9db8c7}
-#arTest{visibility:hidden;position:fixed;inset:0;background:transparent;z-index:5}
+#arTest{visibility:hidden;position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;overflow:hidden;background:#000;z-index:5}
 #arTest.active{visibility:visible}
-#arTest a-scene{position:absolute;inset:0;width:100%;height:100%}
+#arTest a-scene{display:block!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;min-width:100%!important;min-height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:transparent!important}
+#arTest video,
+#arTest video.mindar-video{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;object-fit:cover!important;transform:none!important;z-index:0!important}
+#arTest canvas,
+#arTest canvas.mindar-ui-overlay,
+#arTest .a-canvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;z-index:1!important;background:transparent!important}
+#arTest .a-canvas{pointer-events:none!important}
+#arTest .a-enter-vr,
+#arTest .a-enter-ar{display:none!important}
 #arStatus{position:absolute;top:env(safe-area-inset-top,10px);left:10px;right:10px;z-index:100;padding:12px;border-radius:10px;background:#03101ddd;color:#baf6ff;font-weight:800;font-size:13px;pointer-events:none;white-space:pre-wrap}
 #stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:auto;padding:12px 18px;background:#5b202b}
 </style>
@@ -103,6 +113,24 @@ button:disabled{opacity:.45}
   const target=document.getElementById('trackedTarget');
   let system=null,started=false,busy=false;
   function show(t){arStatus.textContent=t;localStatus.textContent=t;}
+  function applyFullscreenCameraLayout(){
+    document.body.classList.add('ar-running');
+    const video=document.querySelector('#arTest video');
+    if(video){
+      video.style.setProperty('position','fixed','important');
+      video.style.setProperty('inset','0','important');
+      video.style.setProperty('width','100vw','important');
+      video.style.setProperty('height','100dvh','important');
+      video.style.setProperty('object-fit','cover','important');
+    }
+    const canvasEl=document.querySelector('#arTest canvas');
+    if(canvasEl){
+      canvasEl.style.setProperty('position','fixed','important');
+      canvasEl.style.setProperty('inset','0','important');
+      canvasEl.style.setProperty('width','100vw','important');
+      canvasEl.style.setProperty('height','100dvh','important');
+    }
+  }
   async function checkMindFile(){
     try{
       const response=await fetch('./energy-ops-marker.mind',{cache:'no-store'});
@@ -145,6 +173,10 @@ button:disabled{opacity:.45}
       show('4/4 · Solicitando câmera…');
       await system.start();
       started=true;
+      applyFullscreenCameraLayout();
+      requestAnimationFrame(applyFullscreenCameraLayout);
+      setTimeout(applyFullscreenCameraLayout,250);
+      setTimeout(applyFullscreenCameraLayout,900);
       show('Câmera ativa · aponte para o marcador original de 15 × 15 cm');
     }catch(e){
       show('FALHA: '+(e&&e.message?e.message:String(e)));
@@ -153,7 +185,7 @@ button:disabled{opacity:.45}
   });
   document.getElementById('stopAR').addEventListener('click',async()=>{
     try{if(system&&started)await system.stop();}catch(e){}
-    started=false;overlay.classList.remove('active');start.disabled=false;
+    started=false;overlay.classList.remove('active');document.body.classList.remove('ar-running');start.disabled=false;
     localStatus.textContent='Teste encerrado. Toque em INICIAR TESTE MINDAR para repetir.';
   });
 })();
