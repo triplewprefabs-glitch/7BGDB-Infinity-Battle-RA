@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Energy Ops — Teste espacial com dois celulares</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Arial,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#06111e;color:#eafaff}
+body{padding:16px;max-width:760px;margin:auto}
+h1{font-size:22px;color:#72e7ff;margin:0 0 8px}
+h2{font-size:17px;color:#9cecff;margin:0 0 8px}
+p{font-size:14px;line-height:1.5;color:#c5dbe6}
+.card{background:#0a1b2b;border:1px solid #28677d;border-radius:14px;padding:15px;margin:13px 0}
+button,input{width:100%;padding:13px;margin:7px 0;border:1px solid #52d8f2;border-radius:10px;background:#10283a;color:white;font-size:15px}
+button{background:#087da2;font-weight:800}
+button:disabled{opacity:.45}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#roomCode{font-size:25px;letter-spacing:5px;text-align:center;color:#ffeb3b;font-weight:900}
+#status{white-space:pre-wrap;background:#03101d;padding:12px;border-radius:9px;color:#baf6ff;font-size:13px}
+.note{font-size:12px;color:#9db8c7}
+#arTest{display:none;position:fixed;inset:0;width:100vw;height:100dvh;background:#000;z-index:5;overflow:hidden}
+#arTest.active{display:block}
+#arTest a-scene{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important}
+#arTest video,#arTest canvas,#arTest .a-canvas{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;object-fit:cover!important}
+#arTest .a-canvas{pointer-events:none!important}
+#arStatus{position:absolute;z-index:100;top:env(safe-area-inset-top,8px);left:8px;right:8px;padding:10px;background:#03101ddd;border-radius:9px;color:#baf6ff;font-size:12px;font-weight:800;white-space:pre-wrap;pointer-events:none}
+#stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 15px);width:auto;background:#682532}
+</style>
+<script defer src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script defer src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<h1>ENERGY OPS · TESTE COM DOIS CELULARES</h1>
+<p>Teste independente para verificar se dois aparelhos conseguem compartilhar a posição e a orientação de suas câmeras usando o mesmo marcador físico. Não altera o jogo principal nem a página de diagnóstico anterior.</p>
+
+<section class="card">
+<h2>1. Conectar os celulares</h2>
+<p><b>Celular 1:</b> toque em criar sala e informe o código ao outro aparelho.</p>
+<button id="createRoom">CRIAR SALA (CELULAR 1)</button>
+<div id="roomCode">------</div>
+<p><b>Celular 2:</b> digite o código recebido e toque em entrar.</p>
+<input id="joinCode" maxlength="6" placeholder="CÓDIGO DA SALA" autocomplete="off" autocapitalize="characters">
+<button id="joinRoom">ENTRAR NA SALA (CELULAR 2)</button>
+<p class="note">A conexão usa PeerJS/WebRTC. O serviço de sinalização ajuda os aparelhos a se encontrarem; os dados de posição são enviados diretamente entre eles quando a conexão P2P é possível.</p>
+</section>
+
+<section class="card">
+<h2>2. Iniciar o rastreamento</h2>
+<p>Quando aparecer “celulares conectados”, os dois aparelhos devem iniciar a câmera e apontar para o mesmo marcador original de 15 × 15 cm. Mantenha o marcador parado e os celulares a uma distância confortável.</p>
+<button id="startAR" disabled>INICIAR CÂMERA E RASTREAMENTO</button>
+<p id="status">Aguardando criação ou entrada em uma sala.</p>
+</section>
+
+<section class="card">
+<h2>3. O que vamos observar</h2>
+<ul>
+<li>Se os dois aparelhos reconhecem o mesmo marcador.</li>
+<li>Se a posição relativa de cada celular ao marcador chega ao outro.</li>
+<li>Se o indicador 3D do outro celular acompanha seus movimentos.</li>
+</ul>
+<p class="note">Este é um teste de referência espacial, não uma confirmação de precisão milimétrica. Reflexos, oclusão, perda do marcador e limitações de rede podem afetar o resultado.</p>
+</section>
+
+<div id="arTest">
+<div id="arStatus">Preparando câmera…</div>
+<button id="stopAR">FECHAR TESTE</button>
+<a-scene mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.005; filterBeta: 1500; warmupTolerance: 3; missTolerance: 15; uiLoading: no; uiScanning: no; uiError: no" embedded renderer="colorManagement: true; alpha: true" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+<a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+<a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
+<a-box position="0 0 0.02" width="0.22" height="0.22" depth="0.06" material="shader: flat; color: #00e5ff; side: double"></a-box>
+<a-plane position="0 0 0.06" width="0.65" height="0.65" material="shader: flat; color: #00e5ff; opacity: 0.12; transparent: true; side: double"></a-plane>
+<a-entity id="remoteRig" visible="false">
+<a-sphere radius="0.075" material="shader: flat; color: #ffea00"></a-sphere>
+<a-cylinder position="0 0 -0.16" radius="0.035" height="0.22" rotation="90 0 0" material="shader: flat; color: #ff7b00"></a-cylinder>
+<a-text value="OUTRO CELULAR" position="0 0.13 0" align="center" color="#ffea00" width="1.4" side="double"></a-text>
+</a-entity>
+</a-entity>
+</a-scene>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const status=$('status'),arStatus=$('arStatus'),start=$('startAR'),overlay=$('arTest');
+let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),role='';
+function say(t){status.textContent=t;arStatus.textContent=t;}
+function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){remoteRig.setAttribute('position',data.position.map(n=>Number(n)||0).join(' '));remoteRig.object3D.quaternion.set(Number(data.quaternion[0]),Number(data.quaternion[1]),Number(data.quaternion[2]),Number(data.quaternion[3]));remoteRig.setAttribute('visible',true);$('arStatus').textContent='✓ MARCADOR LOCALIZADO · outro celular recebendo pose';}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
+$('createRoom').addEventListener('click',()=>{
+if(peer)return;
+if(!window.Peer){say('PeerJS não carregou. Verifique a internet e recarregue.');return;}
+role='host';const code=Math.random().toString(36).slice(2,8).toUpperCase();$('roomCode').textContent=code;
+peer=new Peer('eo-'+code.toLowerCase()+'-host');
+peer.on('open',()=>say('Sala criada. Código: '+code+'. No segundo celular, digite esse código e entre.'));
+peer.on('connection',c=>{if(conn){c.close();return;}setConnected(c);});
+peer.on('error',e=>say('Não foi possível criar a sala: '+(e.message||e.type||'erro de conexão')+'. Tente criar outra sala.'));
+});
+$('joinRoom').addEventListener('click',()=>{
+if(peer)return;
+if(!window.Peer){say('PeerJS não carregou. Verifique a internet e recarregue.');return;}
+const code=$('joinCode').value.trim().toLowerCase();
+if(!/^[a-z0-9]{6}$/.test(code)){say('Digite o código de seis caracteres mostrado no celular 1.');return;}
+role='guest';peer=new Peer();
+peer.on('open',()=>{say('Procurando a sala '+code+'…');const c=peer.connect('eo-'+code+'-host',{reliable:true});setConnected(c);});
+peer.on('error',e=>say('Falha ao entrar na sala: '+(e.message||e.type||'erro de conexão')+'. Confira o código e tente novamente.'));
+});
+$('startAR').addEventListener('click',async()=>{
+if(!conn||!conn.open){say('Conecte os dois celulares primeiro.');return;}
+if(started)return;
+if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.AFRAME||!window.MINDAR){say('Câmera ou bibliotecas indisponíveis. Use Chrome atualizado em HTTPS.');return;}
+overlay.classList.add('active');say('Preparando rastreamento do marcador…');
+const scene=document.querySelector('a-scene'),target=$('trackedTarget');
+try{
+if(!scene.hasLoaded)await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('A-Frame demorou para carregar.')),20000);scene.addEventListener('loaded',()=>{clearTimeout(timer);resolve();},{once:true});});
+system=scene.systems['mindar-image-system'];if(!system)throw new Error('MindAR não foi inicializado.');
+target.addEventListener('targetFound',()=>{tracking=true;say('✓ MARCADOR ENCONTRADO · enviando posição espacial');});
+target.addEventListener('targetLost',()=>{tracking=false;remoteRig.setAttribute('visible',false);say('Marcador perdido · procurando novamente…');if(conn&&conn.open)conn.send({type:'state',tracking:false});});
+await system.start();started=true;requestAnimationFrame(tick);
+}catch(e){say('Não foi possível iniciar a câmera: '+e.message);overlay.classList.remove('active');}
+});
+function tick(now){
+if(!started)return;
+if(tracking&&conn&&conn.open&&now-lastSend>100){
+lastSend=now;
+const scene=document.querySelector('a-scene'),target=$('trackedTarget'),camera=scene.camera;
+if(camera&&window.THREE){
+camera.updateMatrixWorld(true);target.object3D.updateMatrixWorld(true);
+const markerMatrix=target.object3D.matrixWorld.clone();
+const cameraMatrix=camera.matrixWorld.clone();
+const relative=new THREE.Matrix4().copy(markerMatrix).invert().multiply(cameraMatrix);
+const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();relative.decompose(p,q,s);
+conn.send({type:'pose',tracking:true,position:[p.x,p.y,p.z],quaternion:[q.x,q.y,q.z,q.w],time:Date.now()});
+}
+}
+requestAnimationFrame(tick);
+}
+$('stopAR').addEventListener('click',async()=>{started=false;tracking=false;try{if(system)await system.stop();}catch(e){}overlay.classList.remove('active');remoteRig.setAttribute('visible',false);if(conn&&conn.open)conn.send({type:'state',tracking:false});say('Teste de câmera encerrado. A conexão entre os celulares continua ativa.');});
+window.addEventListener('beforeunload',()=>{try{if(peer)peer.destroy();}catch(e){}});
+})();
+</script>
+</body>
+</html>
