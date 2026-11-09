@@ -199,12 +199,17 @@ button:disabled{opacity:.45}
             target.object3D.updateWorldMatrix(true,false);
             const worldPos=new THREE.Vector3();
             target.object3D.getWorldPosition(worldPos);
-            worldPos.project(camera);
-            const x=(worldPos.x*0.5+0.5)*window.innerWidth;
-            const y=(-worldPos.y*0.5+0.5)*window.innerHeight;
-            const inside=worldPos.z>-1 && worldPos.z<1 && x>=0 && x<=window.innerWidth && y>=0 && y<=window.innerHeight;
+            const axisPoint=target.object3D.localToWorld(new THREE.Vector3(0.25,0,0));
+            const projectedOrigin=worldPos.clone().project(camera);
+            const projectedAxis=axisPoint.project(camera);
+            const x=(projectedOrigin.x*0.5+0.5)*window.innerWidth;
+            const y=(-projectedOrigin.y*0.5+0.5)*window.innerHeight;
+            const ax=(projectedAxis.x*0.5+0.5)*window.innerWidth;
+            const ay=(-projectedAxis.y*0.5+0.5)*window.innerHeight;
+            const angle=Math.atan2(ay-y,ax-x);
+            const inside=projectedOrigin.z>-1 && projectedOrigin.z<1 && x>=0 && x<=window.innerWidth && y>=0 && y<=window.innerHeight;
             if(inside){
-              // Interpolação moderada: suaviza tremores sem criar atraso excessivo.
+              // Mantém a resposta rápida validada e também projeta a orientação do eixo X do marcador.
               const smoothing=0.70;
               if(reticleX===null || reticleY===null){reticleX=x;reticleY=y;}
               else{
@@ -213,6 +218,7 @@ button:disabled{opacity:.45}
               }
               screenReticle.style.left=reticleX+'px';
               screenReticle.style.top=reticleY+'px';
+              screenReticle.style.transform='translate(-50%,-50%) rotate('+angle+'rad)';
               screenReticle.style.display='block';
             }else{
               screenReticle.style.display='none';
