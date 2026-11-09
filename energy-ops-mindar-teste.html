@@ -32,6 +32,12 @@ button:disabled{opacity:.45}
 #arTest .a-enter-ar{display:none!important}
 #arStatus{position:absolute;top:env(safe-area-inset-top,10px);left:10px;right:10px;z-index:100;padding:12px;border-radius:10px;background:#03101ddd;color:#baf6ff;font-weight:800;font-size:13px;pointer-events:none;white-space:pre-wrap}
 #stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:auto;padding:12px 18px;background:#5b202b}
+#screenReticle{display:none;position:absolute;z-index:99;left:50%;top:50%;width:min(58vw,280px);aspect-ratio:1;transform:translate(-50%,-50%);border:7px solid #00f5ff;border-radius:50%;box-shadow:0 0 12px #00f5ff,0 0 34px #00f5ff,inset 0 0 18px #00f5ff;pointer-events:none}
+#screenReticle::before,#screenReticle::after{content:"";position:absolute;background:#ffea00;left:50%;top:50%;transform:translate(-50%,-50%)}
+#screenReticle::before{width:130%;height:5px}
+#screenReticle::after{height:130%;width:5px}
+#screenReticle span{position:absolute;left:50%;bottom:-42px;transform:translateX(-50%);padding:5px 10px;background:#00121ddd;color:#fff;font-weight:900;font-size:14px;white-space:nowrap;border:1px solid #00f5ff;border-radius:6px}
+#screenReticle.visible{display:block}
 </style>
 <!-- Bibliotecas carregadas ANTES da cena A-Frame; defer preserva a ordem. -->
 <script defer src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
@@ -63,6 +69,7 @@ button:disabled{opacity:.45}
 
 <div id="arTest">
 <div id="arStatus">Preparando teste…</div>
+<div id="screenReticle"><span>MARCADOR DETECTADO</span></div>
 <button id="stopAR">FECHAR TESTE</button>
 <a-scene
   mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no"
@@ -111,6 +118,7 @@ button:disabled{opacity:.45}
   const fileStatus=document.getElementById('fileStatus');
   const overlay=document.getElementById('arTest');
   const arStatus=document.getElementById('arStatus');
+  const screenReticle=document.getElementById('screenReticle');
   const start=document.getElementById('startAR');
   const scene=document.querySelector('a-scene');
   const target=document.getElementById('trackedTarget');
@@ -171,8 +179,8 @@ button:disabled{opacity:.45}
       await waitScene();
       system=scene.systems['mindar-image-system'];
       if(!system)throw new Error('O sistema mindar-image-system não foi registrado.');
-      target.addEventListener('targetFound',()=>show('✓ MARCADOR ENCONTRADO · rastreamento ativo'));
-      target.addEventListener('targetLost',()=>show('Marcador perdido · procurando novamente…'));
+      target.addEventListener('targetFound',()=>{show('✓ MARCADOR ENCONTRADO · rastreamento ativo');screenReticle.classList.add('visible');});
+      target.addEventListener('targetLost',()=>{show('Marcador perdido · procurando novamente…');screenReticle.classList.remove('visible');});
       show('4/4 · Solicitando câmera…');
       await system.start();
       started=true;
@@ -188,7 +196,7 @@ button:disabled{opacity:.45}
   });
   document.getElementById('stopAR').addEventListener('click',async()=>{
     try{if(system&&started)await system.stop();}catch(e){}
-    started=false;overlay.classList.remove('active');document.body.classList.remove('ar-running');start.disabled=false;
+    started=false;screenReticle.classList.remove('visible');overlay.classList.remove('active');document.body.classList.remove('ar-running');start.disabled=false;
     localStatus.textContent='Teste encerrado. Toque em INICIAR TESTE MINDAR para repetir.';
   });
 })();
