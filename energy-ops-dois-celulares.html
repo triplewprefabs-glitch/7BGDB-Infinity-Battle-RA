@@ -72,14 +72,10 @@ button:disabled{opacity:.45}
 <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
 <a-box position="0 0 0.02" width="0.22" height="0.22" depth="0.06" material="shader: flat; color: #00e5ff; side: double"></a-box>
 <a-plane position="0 0 0.06" width="0.65" height="0.65" material="shader: flat; color: #00e5ff; opacity: 0.12; transparent: true; side: double"></a-plane>
-<a-entity id="remoteLink" visible="false" line="start: 0, 0, 0; end: 0, 0, 0.5; color: #ffea00; opacity: 1"></a-entity>
 <a-entity id="remoteRig" visible="false">
-<a-sphere radius="0.15" material="shader: flat; color: #ffea00; depthTest: false"></a-sphere>
-<a-sphere radius="0.19" material="shader: flat; color: #ff9d00; opacity: 0.35; transparent: true; depthTest: false"></a-sphere>
-<a-cylinder position="0 0.28 0" radius="0.035" height="0.42" material="shader: flat; color: #ff7b00; depthTest: false"></a-cylinder>
-<a-cone position="0 0.53 0" radius-bottom="0.09" radius-top="0" height="0.16" material="shader: flat; color: #ffea00; depthTest: false"></a-cone>
-<a-torus position="0 0.02 0" radius="0.22" radius-tubular="0.018" rotation="90 0 0" material="shader: flat; color: #ffea00; depthTest: false"></a-torus>
-<a-text value="OUTRO CELULAR" position="0 0.68 0" align="center" color="#ffea00" width="2.2" side="double"></a-text>
+<a-sphere radius="0.12" material="shader: flat; color: #ffea00"></a-sphere>
+<a-cylinder position="0 0.23 0" radius="0.035" height="0.30" material="shader: flat; color: #ff7b00"></a-cylinder>
+<a-text value="OUTRO CELULAR" position="0 0.43 0" align="center" color="#ffea00" width="1.8" side="double"></a-text>
 </a-entity>
 </a-entity>
 </a-scene>
@@ -89,9 +85,9 @@ button:disabled{opacity:.45}
 (function(){
 const $=id=>document.getElementById(id);
 const status=$('status'),arStatus=$('arStatus'),start=$('startAR'),overlay=$('arTest');
-let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),remoteLink=$('remoteLink'),role='';
+let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),role='';
 function say(t){status.textContent=t;arStatus.textContent=t;}
-function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){remoteRig.setAttribute('position',xyz.join(' '));remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.setAttribute('visible',true);remoteLink.setAttribute('line','start: 0, 0, 0; end: '+xyz.join(', ')+'; color: #ffea00; opacity: 1');remoteLink.setAttribute('visible',true);$('arStatus').textContent='✓ POSE RECEBIDA · indicador amarelo = outro celular';}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);remoteLink.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
+function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){remoteRig.setAttribute('position',xyz.join(' '));remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.setAttribute('visible',true);$('arStatus').textContent='✓ POSE RECEBIDA · indicador amarelo = outro celular';}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
 $('createRoom').addEventListener('click',()=>{
 if(peer)return;
 if(!window.Peer){say('PeerJS não carregou. Verifique a internet e recarregue.');return;}
