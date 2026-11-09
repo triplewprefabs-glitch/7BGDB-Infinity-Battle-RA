@@ -72,9 +72,22 @@ button:disabled{opacity:.45}
   device-orientation-permission-ui="enabled: false">
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
   <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
-    <a-ring position="0 0 0.01" radius-inner="0.30" radius-outer="0.34" color="#00eaff" material="shader: flat; opacity: 0.95"></a-ring>
-    <a-box position="0 0 0.04" width="0.16" height="0.16" depth="0.04" material="color: #00cfff; opacity: 0.75; transparent: true; wireframe: true"></a-box>
-    <a-text value="ENERGY OPS" position="0 -0.42 0.02" align="center" color="#ffffff" width="1.4" side="double"></a-text>
+    <!-- Moldura visual no próprio espaço do marcador: acompanha sua posição e rotação. -->
+    <a-ring position="0 0 0.035" radius-inner="0.43" radius-outer="0.49"
+      material="shader: flat; color: #00f5ff; opacity: 1; side: double; depthTest: false"></a-ring>
+    <a-ring position="0 0 0.04" radius-inner="0.36" radius-outer="0.375"
+      material="shader: flat; color: #ffffff; opacity: 0.95; side: double; depthTest: false"></a-ring>
+    <a-box position="0 0 0.055" width="0.20" height="0.20" depth="0.018"
+      material="shader: flat; color: #00cfff; opacity: 0.9; transparent: true; wireframe: true; side: double; depthTest: false"></a-box>
+    <a-box position="0 0.50 0.035" width="0.24" height="0.025" depth="0.018"
+      material="shader: flat; color: #00f5ff; side: double; depthTest: false"></a-box>
+    <a-box position="0 -0.50 0.035" width="0.24" height="0.025" depth="0.018"
+      material="shader: flat; color: #00f5ff; side: double; depthTest: false"></a-box>
+    <a-box position="0.50 0 0.035" width="0.025" height="0.24" depth="0.018"
+      material="shader: flat; color: #00f5ff; side: double; depthTest: false"></a-box>
+    <a-box position="-0.50 0 0.035" width="0.025" height="0.24" depth="0.018"
+      material="shader: flat; color: #00f5ff; side: double; depthTest: false"></a-box>
+    <a-text value="ENERGY OPS" position="0 -0.62 0.04" align="center" color="#ffffff" width="1.5" side="double"></a-text>
   </a-entity>
 </a-scene>
 </div>
