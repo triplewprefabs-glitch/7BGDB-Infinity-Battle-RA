@@ -184,24 +184,29 @@ button:disabled{opacity:.45}
       target.addEventListener('targetLost',()=>{show('Marcador perdido · procurando novamente…');screenReticle.classList.remove('visible');});
       // Projeta a posição real do alvo MindAR na tela; a mira deixa de ficar fixa no centro.
       function updateTrackedReticle(){
-        if(!started || !screenReticle.classList.contains('visible')) return;
-        const camera=scene.camera;
-        if(camera && window.THREE){
-          const worldPos=new THREE.Vector3();
-          target.object3D.getWorldPosition(worldPos);
-          worldPos.project(camera);
-          const x=(worldPos.x*0.5+0.5)*window.innerWidth;
-          const y=(-worldPos.y*0.5+0.5)*window.innerHeight;
-          const inside=worldPos.z>-1 && worldPos.z<1 && x>=0 && x<=window.innerWidth && y>=0 && y<=window.innerHeight;
-          if(inside){
-            screenReticle.style.left=x+'px';
-            screenReticle.style.top=y+'px';
-            screenReticle.style.display='block';
-          }else{
-            screenReticle.style.display='none';
+        // O ciclo precisa continuar mesmo antes do targetFound; caso contrário,
+        // a primeira chamada termina e a mira fica presa no centro.
+        if(started && screenReticle.classList.contains('visible')){
+          const camera=scene.camera;
+          if(camera && window.THREE){
+            camera.updateMatrixWorld(true);
+            target.object3D.updateWorldMatrix(true,false);
+            const worldPos=new THREE.Vector3();
+            target.object3D.getWorldPosition(worldPos);
+            worldPos.project(camera);
+            const x=(worldPos.x*0.5+0.5)*window.innerWidth;
+            const y=(-worldPos.y*0.5+0.5)*window.innerHeight;
+            const inside=worldPos.z>-1 && worldPos.z<1 && x>=0 && x<=window.innerWidth && y>=0 && y<=window.innerHeight;
+            if(inside){
+              screenReticle.style.left=x+'px';
+              screenReticle.style.top=y+'px';
+              screenReticle.style.display='block';
+            }else{
+              screenReticle.style.display='none';
+            }
           }
         }
-        requestAnimationFrame(updateTrackedReticle);
+        if(started) requestAnimationFrame(updateTrackedReticle);
       }
       show('4/4 · Solicitando câmera…');
       await system.start();
