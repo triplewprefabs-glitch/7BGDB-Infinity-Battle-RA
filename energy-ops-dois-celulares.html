@@ -76,9 +76,10 @@ button:disabled{opacity:.45}
 <a-plane position="0 0 0.07" width="0.72" height="0.72" material="shader: flat; color: #00e5ff; opacity: 0.28; transparent: true; side: double"></a-plane>
 <a-text value="TESTE 3D" position="0 -0.48 0.08" align="center" color="#ffffff" width="1.8" side="double"></a-text>
 <a-entity id="remoteRig" visible="false">
-<a-sphere radius="0.12" material="shader: flat; color: #ffea00"></a-sphere>
-<a-cylinder position="0 0.23 0" radius="0.035" height="0.30" material="shader: flat; color: #ff7b00"></a-cylinder>
-<a-text value="OUTRO CELULAR" position="0 0.43 0" align="center" color="#ffea00" width="1.8" side="double"></a-text>
+<a-sphere radius="0.18" material="shader: flat; color: #ffea00; emissive: #ffea00; emissiveIntensity: 1" position="0 0 0"></a-sphere>
+<a-torus position="0 0 0" rotation="90 0 0" radius="0.27" radius-tubular="0.025" material="shader: flat; color: #ff7b00"></a-torus>
+<a-cone position="0 0.34 0" radius-bottom="0.09" radius-top="0" height="0.24" material="shader: flat; color: #ff7b00"></a-cone>
+<a-text value="OUTRO CELULAR" position="0 0.58 0" align="center" color="#ffea00" width="2.2" side="double"></a-text>
 </a-entity>
 </a-entity>
 </a-scene>
@@ -90,7 +91,7 @@ const $=id=>document.getElementById(id);
 const status=$('status'),arStatus=$('arStatus'),start=$('startAR'),overlay=$('arTest');
 let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),role='',lastRemotePose=null;
 function say(t){status.textContent=t;arStatus.textContent=t;}
-function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){lastRemotePose={xyz,quat};remoteRig.setAttribute('position',xyz.join(' '));remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.setAttribute('visible',tracking);$('arStatus').textContent=tracking?'✓ MARCADOR LOCAL E POSE REMOTA RECEBIDOS':'✓ POSE REMOTA RECEBIDA · aguardando detectar o marcador nesta câmera';}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
+function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){lastRemotePose={xyz,quat};remoteRig.object3D.position.set(xyz[0],xyz[1],xyz[2]);remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.object3D.visible=tracking;remoteRig.setAttribute('visible',tracking);$('arStatus').textContent=(tracking?'✓ MARCADOR LOCAL + POSE REMOTA':'✓ POSE REMOTA RECEBIDA')+'\nPosição recebida: X '+xyz[0].toFixed(2)+' · Y '+xyz[1].toFixed(2)+' · Z '+xyz[2].toFixed(2);}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
 $('createRoom').addEventListener('click',()=>{
 if(peer)return;
 if(!window.Peer){say('PeerJS não carregou. Verifique a internet e recarregue.');return;}
@@ -118,7 +119,7 @@ const scene=document.querySelector('a-scene'),target=$('trackedTarget');
 try{
 if(!scene.hasLoaded)await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('A-Frame demorou para carregar.')),20000);scene.addEventListener('loaded',()=>{clearTimeout(timer);resolve();},{once:true});});
 system=scene.systems['mindar-image-system'];if(!system)throw new Error('MindAR não foi inicializado.');
-target.addEventListener('targetFound',()=>{tracking=true;if(lastRemotePose)remoteRig.setAttribute('visible',true);say(lastRemotePose?'✓ SEU MARCADOR FOI ENCONTRADO · pose do outro celular recebida':'✓ SEU MARCADOR FOI ENCONTRADO · aguardando pose do outro celular');});
+target.addEventListener('targetFound',()=>{tracking=true;if(lastRemotePose){remoteRig.object3D.visible=true;remoteRig.setAttribute('visible',true);const v=lastRemotePose.xyz;say('✓ MARCADOR LOCAL E POSE REMOTA RECEBIDOS\nPosição remota: X '+v[0].toFixed(2)+' · Y '+v[1].toFixed(2)+' · Z '+v[2].toFixed(2));}else say('✓ SEU MARCADOR FOI ENCONTRADO · aguardando pose do outro celular');});
 target.addEventListener('targetLost',()=>{tracking=false;remoteRig.setAttribute('visible',false);say('Seu marcador não está sendo detectado · aponte esta câmera para ele novamente.');if(conn&&conn.open)conn.send({type:'state',tracking:false});});
 await system.start();started=true;applyFullscreenCameraLayout();requestAnimationFrame(applyFullscreenCameraLayout);setTimeout(applyFullscreenCameraLayout,250);setTimeout(applyFullscreenCameraLayout,900);requestAnimationFrame(tick);
 }catch(e){say('Não foi possível iniciar a câmera: '+e.message);overlay.classList.remove('active');}
