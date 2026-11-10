@@ -28,7 +28,7 @@ button:disabled{opacity:.45}
 #arTest canvas,#arTest canvas.mindar-ui-overlay,#arTest .a-canvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;z-index:1!important;background:transparent!important}
 #arTest .a-canvas{pointer-events:none!important}
 #arStatus{position:absolute;z-index:100;top:env(safe-area-inset-top,8px);left:8px;right:8px;padding:10px;background:#03101ddd;border-radius:9px;color:#baf6ff;font-size:12px;font-weight:800;white-space:pre-wrap;pointer-events:none}
-#stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 15px);width:auto;background:#682532}
+#stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 15px);width:auto;background:#682532}\n#remoteBadge{display:none;position:absolute;z-index:102;top:calc(env(safe-area-inset-top,8px) + 8px);right:8px;padding:9px 12px;border:2px solid #ffea00;border-radius:999px;background:#332d00ee;color:#ffea00;font-size:12px;font-weight:900;box-shadow:0 0 18px #ffea0099;pointer-events:none}\n#remoteBadge.active{display:block}
 </style>
 <script defer src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -67,7 +67,7 @@ button:disabled{opacity:.45}
 </section>
 
 <div id="arTest">
-<div id="arStatus">Preparando câmera…</div>
+<div id="arStatus">Preparando câmera…</div>\n<div id="remoteBadge">● OUTRO CELULAR CONECTADO</div>
 <button id="stopAR">FECHAR TESTE</button>
 <a-scene mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.005; filterBeta: 1500; warmupTolerance: 3; missTolerance: 15; uiLoading: no; uiScanning: no; uiError: no" embedded renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -92,7 +92,7 @@ const status=$('status'),arStatus=$('arStatus'),start=$('startAR'),overlay=$('ar
 let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),role='',lastRemotePose=null,lastLocalPose=null;
 function say(t){status.textContent=t;arStatus.textContent=t;}
 function poseText(v){return v?'X '+v[0].toFixed(2)+' · Y '+v[1].toFixed(2)+' · Z '+v[2].toFixed(2):'aguardando';}
-function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){lastRemotePose={xyz,quat};remoteRig.object3D.position.set(xyz[0],xyz[1],xyz[2]);remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.object3D.visible=tracking;remoteRig.setAttribute('visible',tracking);$('arStatus').textContent=(tracking?'✓ MARCADOR LOCAL + POSE REMOTA':'✓ POSE REMOTA RECEBIDA')+'\nPosição recebida: X '+xyz[0].toFixed(2)+' · Y '+xyz[1].toFixed(2)+' · Z '+xyz[2].toFixed(2);}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
+function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){lastRemotePose={xyz,quat};$('remoteBadge').classList.add('active');remoteRig.object3D.position.set(xyz[0],xyz[1],xyz[2]);remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.object3D.visible=tracking;remoteRig.setAttribute('visible',tracking);$('arStatus').textContent=(tracking?'✓ MARCADOR LOCAL + POSE REMOTA':'✓ POSE REMOTA RECEBIDA')+'\nPosição recebida: X '+xyz[0].toFixed(2)+' · Y '+xyz[1].toFixed(2)+' · Z '+xyz[2].toFixed(2);}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);$('remoteBadge').classList.remove('active');});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
 $('createRoom').addEventListener('click',()=>{
 if(peer)return;
 if(!window.Peer){say('PeerJS não carregou. Verifique a internet e recarregue.');return;}
