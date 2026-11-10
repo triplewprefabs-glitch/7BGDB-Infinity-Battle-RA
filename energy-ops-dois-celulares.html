@@ -9,6 +9,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:#06111e;color:#eafaff}
 body{padding:16px;max-width:760px;margin:auto}
+body.ar-running{padding:0;max-width:none;margin:0;overflow:hidden}
 h1{font-size:22px;color:#72e7ff;margin:0 0 8px}
 h2{font-size:17px;color:#9cecff;margin:0 0 8px}
 p{font-size:14px;line-height:1.5;color:#c5dbe6}
@@ -22,8 +23,9 @@ button:disabled{opacity:.45}
 .note{font-size:12px;color:#9db8c7}
 #arTest{visibility:hidden;pointer-events:none;position:fixed;inset:0;width:100vw;height:100dvh;background:#000;z-index:5;overflow:hidden}
 #arTest.active{visibility:visible;pointer-events:auto}
-#arTest a-scene{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important}
-#arTest video,#arTest canvas,#arTest .a-canvas{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;object-fit:cover!important}
+#arTest a-scene{display:block!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;min-width:100%!important;min-height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:transparent!important}
+#arTest video,#arTest video.mindar-video{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;object-fit:cover!important;transform:none!important;z-index:0!important}
+#arTest canvas,#arTest canvas.mindar-ui-overlay,#arTest .a-canvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;z-index:1!important;background:transparent!important}
 #arTest .a-canvas{pointer-events:none!important}
 #arStatus{position:absolute;z-index:100;top:env(safe-area-inset-top,8px);left:8px;right:8px;padding:10px;background:#03101ddd;border-radius:9px;color:#baf6ff;font-size:12px;font-weight:800;white-space:pre-wrap;pointer-events:none}
 #stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 15px);width:auto;background:#682532}
@@ -67,12 +69,12 @@ button:disabled{opacity:.45}
 <div id="arTest">
 <div id="arStatus">Preparando câmera…</div>
 <button id="stopAR">FECHAR TESTE</button>
-<a-scene mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.005; filterBeta: 1500; warmupTolerance: 3; missTolerance: 15; uiLoading: no; uiScanning: no; uiError: no" embedded renderer="colorManagement: true; alpha: true" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+<a-scene mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.005; filterBeta: 1500; warmupTolerance: 3; missTolerance: 15; uiLoading: no; uiScanning: no; uiError: no" embedded renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
-<a-box id="localBlueCube" position="0 0 0.04" width="0.30" height="0.30" depth="0.09" material="shader: flat; color: #00e5ff; side: double; depthTest: false"></a-box>
-<a-text value="MARCADOR LOCAL" position="0 0.25 0.08" align="center" color="#00e5ff" width="1.5" side="double"></a-text>
-<a-plane position="0 0 0.10" width="0.65" height="0.65" material="shader: flat; color: #00e5ff; opacity: 0.08; transparent: true; side: double"></a-plane>
+<a-box id="localBlueCube" position="0 0 0.02" width="0.32" height="0.32" depth="0.08" material="shader: flat; color: #00e5ff; side: double"></a-box>
+<a-plane position="0 0 0.07" width="0.72" height="0.72" material="shader: flat; color: #00e5ff; opacity: 0.28; transparent: true; side: double"></a-plane>
+<a-text value="TESTE 3D" position="0 -0.48 0.08" align="center" color="#ffffff" width="1.8" side="double"></a-text>
 <a-entity id="remoteRig" visible="false">
 <a-sphere radius="0.12" material="shader: flat; color: #ffea00"></a-sphere>
 <a-cylinder position="0 0.23 0" radius="0.035" height="0.30" material="shader: flat; color: #ff7b00"></a-cylinder>
@@ -111,20 +113,17 @@ $('startAR').addEventListener('click',async()=>{
 if(!conn||!conn.open){say('Conecte os dois celulares primeiro.');return;}
 if(started)return;
 if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.AFRAME||!window.MINDAR){say('Câmera ou bibliotecas indisponíveis. Use Chrome atualizado em HTTPS.');return;}
-overlay.classList.add('active');say('Preparando rastreamento do marcador…');
+overlay.classList.add('active');document.body.classList.add('ar-running');say('Preparando rastreamento do marcador…');
 const scene=document.querySelector('a-scene'),target=$('trackedTarget');
-// A cena permanece dimensionada mesmo antes de abrir a câmera; recalcula a viewport ao exibi-la.
-window.dispatchEvent(new Event('resize'));
-if(scene.renderer){scene.renderer.setSize(window.innerWidth,window.innerHeight);}
-if(scene.camera){scene.camera.aspect=window.innerWidth/window.innerHeight;scene.camera.updateProjectionMatrix();}
 try{
 if(!scene.hasLoaded)await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('A-Frame demorou para carregar.')),20000);scene.addEventListener('loaded',()=>{clearTimeout(timer);resolve();},{once:true});});
 system=scene.systems['mindar-image-system'];if(!system)throw new Error('MindAR não foi inicializado.');
 target.addEventListener('targetFound',()=>{tracking=true;if(lastRemotePose)remoteRig.setAttribute('visible',true);say(lastRemotePose?'✓ SEU MARCADOR FOI ENCONTRADO · pose do outro celular recebida':'✓ SEU MARCADOR FOI ENCONTRADO · aguardando pose do outro celular');});
 target.addEventListener('targetLost',()=>{tracking=false;remoteRig.setAttribute('visible',false);say('Seu marcador não está sendo detectado · aponte esta câmera para ele novamente.');if(conn&&conn.open)conn.send({type:'state',tracking:false});});
-await system.start();started=true;requestAnimationFrame(tick);
+await system.start();started=true;applyFullscreenCameraLayout();requestAnimationFrame(applyFullscreenCameraLayout);setTimeout(applyFullscreenCameraLayout,250);setTimeout(applyFullscreenCameraLayout,900);requestAnimationFrame(tick);
 }catch(e){say('Não foi possível iniciar a câmera: '+e.message);overlay.classList.remove('active');}
 });
+function applyFullscreenCameraLayout(){const video=document.querySelector('#arTest video');if(video){video.style.setProperty('position','fixed','important');video.style.setProperty('inset','0','important');video.style.setProperty('width','100vw','important');video.style.setProperty('height','100dvh','important');video.style.setProperty('object-fit','cover','important');}const cv=document.querySelector('#arTest canvas');if(cv){cv.style.setProperty('position','fixed','important');cv.style.setProperty('inset','0','important');cv.style.setProperty('width','100vw','important');cv.style.setProperty('height','100dvh','important');}}
 function tick(now){
 if(!started)return;
 if(tracking&&conn&&conn.open&&now-lastSend>100){
@@ -141,7 +140,7 @@ conn.send({type:'pose',tracking:true,position:[p.x,p.y,p.z],quaternion:[q.x,q.y,
 }
 requestAnimationFrame(tick);
 }
-$('stopAR').addEventListener('click',async()=>{started=false;tracking=false;try{if(system)await system.stop();}catch(e){}overlay.classList.remove('active');remoteRig.setAttribute('visible',false);if(conn&&conn.open)conn.send({type:'state',tracking:false});say('Teste de câmera encerrado. A conexão entre os celulares continua ativa.');});
+$('stopAR').addEventListener('click',async()=>{started=false;tracking=false;try{if(system)await system.stop();}catch(e){}overlay.classList.remove('active');document.body.classList.remove('ar-running');remoteRig.setAttribute('visible',false);if(conn&&conn.open)conn.send({type:'state',tracking:false});say('Teste de câmera encerrado. A conexão entre os celulares continua ativa.');});
 window.addEventListener('beforeunload',()=>{try{if(peer)peer.destroy();}catch(e){}});
 })();
 </script>
