@@ -97,7 +97,7 @@ button:disabled{opacity:.45}
 (function(){
 const $=id=>document.getElementById(id);
 const status=$('status'),arStatus=$('arStatus'),start=$('startAR'),overlay=$('arTest');
-let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),role='',lastRemotePose=null,lastLocalPose=null;
+let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),role='',lastRemotePose=null,lastLocalPose=null,lastMatrixDebug=null;
 function say(t){status.textContent=t;arStatus.textContent=t;}
 function poseText(v){return v?'X '+v[0].toFixed(2)+' · Y '+v[1].toFixed(2)+' · Z '+v[2].toFixed(2):'aguardando';}
 function updateRemoteScreenMarker(camera,localRelative){const el=$('remoteScreenMarker');if(!lastRemotePose||!tracking){el.classList.remove('active');return;}const remoteMatrix=new THREE.Matrix4().compose(new THREE.Vector3(...lastRemotePose.xyz),new THREE.Quaternion(...lastRemotePose.quat),new THREE.Vector3(1,1,1));const localInverse=localRelative.clone().invert();const remoteInLocal=localInverse.multiply(remoteMatrix);const p=new THREE.Vector3().setFromMatrixPosition(remoteInLocal);const projected=p.clone().applyMatrix4(camera.projectionMatrix);let nx=projected.x*.5+.5,ny=.5-projected.y*.5;if(p.z>=0){nx=.5+(p.x>=0?0.42:-0.42);ny=.5-(p.y>=0?0.32:-0.32);}nx=Math.max(.06,Math.min(.94,nx));ny=Math.max(.10,Math.min(.88,ny));el.style.left=(nx*100)+'%';el.style.top=(ny*100)+'%';el.classList.add('active');$('remoteScreenLabel').textContent='OUTRO CELULAR · '+p.length().toFixed(2)+' unidades (escala em calibração)';}
@@ -147,9 +147,12 @@ const cameraMatrix=camera.matrixWorld.clone();
 const relative=new THREE.Matrix4().copy(markerMatrix).invert().multiply(cameraMatrix);
  updateRemoteScreenMarker(camera,relative);
 const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();relative.decompose(p,q,s);
+const markerP=new THREE.Vector3(),markerQ=new THREE.Quaternion(),markerS=new THREE.Vector3();markerMatrix.decompose(markerP,markerQ,markerS);
 lastLocalPose=[p.x,p.y,p.z];
-if(lastRemotePose)$('arStatus').textContent='✓ RASTREAMENTO DOS DOIS CELULARES\nSua câmera: '+poseText(lastLocalPose)+'\nOutro celular: '+poseText(lastRemotePose.xyz);
-else $('arStatus').textContent='✓ SEU MARCADOR FOI ENCONTRADO\nSua câmera: '+poseText(lastLocalPose)+'\nAguardando posição do outro celular…';
+lastMatrixDebug={markerScale:[markerS.x,markerS.y,markerS.z],relativeScale:[s.x,s.y,s.z]};
+const debugLine='Escala alvo: '+markerS.x.toFixed(5)+' / '+markerS.y.toFixed(5)+' / '+markerS.z.toFixed(5)+'\nEscala pose: '+s.x.toFixed(7)+' / '+s.y.toFixed(7)+' / '+s.z.toFixed(7);
+if(lastRemotePose)$('arStatus').textContent='✓ RASTREAMENTO DOS DOIS CELULARES\nSua câmera: '+poseText(lastLocalPose)+'\nOutro celular: '+poseText(lastRemotePose.xyz)+'\n'+debugLine;
+else $('arStatus').textContent='✓ SEU MARCADOR FOI ENCONTRADO\nSua câmera: '+poseText(lastLocalPose)+'\nAguardando posição do outro celular…\n'+debugLine;
 conn.send({type:'pose',tracking:true,position:lastLocalPose,quaternion:[q.x,q.y,q.z,q.w],time:Date.now()});
 }
 }
