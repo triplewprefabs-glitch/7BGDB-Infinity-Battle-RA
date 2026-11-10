@@ -31,6 +31,10 @@ button:disabled{opacity:.45}
 #stopAR{position:absolute;z-index:101;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 15px);width:auto;background:#682532}
 #remoteBadge{display:none;position:absolute;z-index:102;top:calc(env(safe-area-inset-top,8px) + 8px);right:8px;padding:9px 12px;border:2px solid #ffea00;border-radius:999px;background:#332d00ee;color:#ffea00;font-size:12px;font-weight:900;box-shadow:0 0 18px #ffea0099;pointer-events:none}
 #remoteBadge.active{display:block}
+#remoteScreenMarker{display:none;position:absolute;z-index:103;left:50%;top:50%;width:22px;height:22px;border:3px solid #ffea00;border-radius:50%;background:#ffea0055;box-shadow:0 0 16px #ffea00;transform:translate(-50%,-50%);pointer-events:none}
+#remoteScreenMarker.active{display:block}
+#remoteScreenLabel{position:absolute;left:50%;top:calc(100% + 7px);transform:translateX(-50%);padding:4px 7px;border-radius:6px;background:#1b1900dd;color:#ffea00;font-size:11px;font-weight:900;white-space:nowrap}
+
 </style>
 <script defer src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -71,6 +75,7 @@ button:disabled{opacity:.45}
 <div id="arTest">
 <div id="arStatus">Preparando câmera…</div>
 <div id="remoteBadge">● OUTRO CELULAR CONECTADO</div>
+<div id="remoteScreenMarker"><div id="remoteScreenLabel">OUTRO CELULAR</div></div>
 <button id="stopAR">FECHAR TESTE</button>
 <a-scene mindar-image="imageTargetSrc: ./energy-ops-marker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.005; filterBeta: 1500; warmupTolerance: 3; missTolerance: 15; uiLoading: no; uiScanning: no; uiError: no" embedded renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -95,7 +100,8 @@ const status=$('status'),arStatus=$('arStatus'),start=$('startAR'),overlay=$('ar
 let peer=null,conn=null,system=null,started=false,tracking=false,lastSend=0,remoteRig=$('remoteRig'),role='',lastRemotePose=null,lastLocalPose=null;
 function say(t){status.textContent=t;arStatus.textContent=t;}
 function poseText(v){return v?'X '+v[0].toFixed(2)+' · Y '+v[1].toFixed(2)+' · Z '+v[2].toFixed(2):'aguardando';}
-function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){lastRemotePose={xyz,quat};$('remoteBadge').classList.add('active');$('remoteBadge').style.display='block';remoteRig.object3D.position.set(xyz[0],xyz[1],xyz[2]);remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.object3D.visible=tracking;remoteRig.setAttribute('visible',tracking);$('arStatus').textContent=(tracking?'✓ MARCADOR LOCAL + POSE REMOTA':'✓ POSE REMOTA RECEBIDA')+'\nPosição recebida: X '+xyz[0].toFixed(2)+' · Y '+xyz[1].toFixed(2)+' · Z '+xyz[2].toFixed(2);}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);$('remoteBadge').classList.remove('active');$('remoteBadge').style.display='none';});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
+function updateRemoteScreenMarker(camera,localRelative){const el=$('remoteScreenMarker');if(!lastRemotePose||!tracking){el.classList.remove('active');return;}const remoteMatrix=new THREE.Matrix4().compose(new THREE.Vector3(...lastRemotePose.xyz),new THREE.Quaternion(...lastRemotePose.quat),new THREE.Vector3(1,1,1));const localInverse=localRelative.clone().invert();const remoteInLocal=localInverse.multiply(remoteMatrix);const p=new THREE.Vector3().setFromMatrixPosition(remoteInLocal);const projected=p.clone().applyMatrix4(camera.projectionMatrix);let nx=projected.x*.5+.5,ny=.5-projected.y*.5;if(p.z>=0){nx=.5+(p.x>=0?0.42:-0.42);ny=.5-(p.y>=0?0.32:-0.32);}nx=Math.max(.06,Math.min(.94,nx));ny=Math.max(.10,Math.min(.88,ny));el.style.left=(nx*100)+'%';el.style.top=(ny*100)+'%';el.classList.add('active');$('remoteScreenLabel').textContent='OUTRO CELULAR · '+p.length().toFixed(1)+' m';}
+function setConnected(c){conn=c;c.on('open',()=>{say('✓ CELULARES CONECTADOS · agora inicie a câmera nos dois aparelhos');start.disabled=false;});c.on('data',data=>{if(data&&data.type==='pose'&&data.tracking&&data.position&&data.quaternion){const xyz=data.position.map(n=>Number(n));const quat=data.quaternion.map(n=>Number(n));if(xyz.every(Number.isFinite)&&quat.every(Number.isFinite)){lastRemotePose={xyz,quat};$('remoteBadge').classList.add('active');$('remoteBadge').style.display='block';remoteRig.object3D.position.set(xyz[0],xyz[1],xyz[2]);remoteRig.object3D.quaternion.set(quat[0],quat[1],quat[2],quat[3]).normalize();remoteRig.object3D.visible=tracking;remoteRig.setAttribute('visible',tracking);$('arStatus').textContent=(tracking?'✓ MARCADOR LOCAL + POSE REMOTA':'✓ POSE REMOTA RECEBIDA')+'\nPosição recebida: X '+xyz[0].toFixed(2)+' · Y '+xyz[1].toFixed(2)+' · Z '+xyz[2].toFixed(2);}}else if(data&&data.type==='state'&&!data.tracking){remoteRig.setAttribute('visible',false);}});c.on('close',()=>{say('Conexão encerrada. Recrie ou entre na sala novamente.');start.disabled=true;remoteRig.setAttribute('visible',false);$('remoteBadge').classList.remove('active');$('remoteBadge').style.display='none';$('remoteScreenMarker').classList.remove('active');});c.on('error',e=>say('Falha na conexão: '+(e.message||e.type||'erro de rede')));}
 $('createRoom').addEventListener('click',()=>{
 if(peer)return;
 if(!window.Peer){say('PeerJS não carregou. Verifique a internet e recarregue.');return;}
@@ -139,6 +145,7 @@ camera.updateMatrixWorld(true);target.object3D.updateMatrixWorld(true);
 const markerMatrix=target.object3D.matrixWorld.clone();
 const cameraMatrix=camera.matrixWorld.clone();
 const relative=new THREE.Matrix4().copy(markerMatrix).invert().multiply(cameraMatrix);
+ updateRemoteScreenMarker(camera,relative);
 const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();relative.decompose(p,q,s);
 lastLocalPose=[p.x,p.y,p.z];
 if(lastRemotePose)$('arStatus').textContent='✓ RASTREAMENTO DOS DOIS CELULARES\nSua câmera: '+poseText(lastLocalPose)+'\nOutro celular: '+poseText(lastRemotePose.xyz);
