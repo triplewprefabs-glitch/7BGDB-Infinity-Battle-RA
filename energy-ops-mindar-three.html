@@ -46,39 +46,12 @@ import * as THREE from 'three';
 import {MindARThree} from 'mindar-image-three';
 const $=id=>document.getElementById(id);
 const net=$('net'),panel=$('panel'),setup=$('setup');
-let peer=null,conn=null,role='',mindar=null,anchor=null,gameRoot=null,remoteRig=null;
+let conn=null,mindar=null,anchor=null,gameRoot=null,remoteRig=null;
 let running=false,tracking=false,lastSend=0,lastRemote=null,rafStarted=false;
 let localPosition=null,localRotation=null,frameCount=0,lastFoundAt=0;
 const imageTargetSrc='./energy-ops-marker.mind';
 function say(t){net.textContent=t;if(panel.style.display!=='none')panel.textContent=t;}
-function connect(c){
- conn=c;
- c.on('open',()=>{$('start').disabled=false;say('✓ CELULARES CONECTADOS. Agora inicie a câmera nos dois aparelhos.');});
- c.on('data',d=>{
-  if(d&&d.type==='pose'&&Array.isArray(d.position)&&Array.isArray(d.quaternion)&&d.position.length===3&&d.quaternion.length===4){
-   const p=d.position.map(Number),q=d.quaternion.map(Number);
-   if(!p.every(Number.isFinite)||!q.every(Number.isFinite))return;
-   lastRemote={position:p,quaternion:q,at:Date.now()};
-   if(remoteRig){remoteRig.position.set(p[0],p[1],p[2]);remoteRig.quaternion.set(q[0],q[1],q[2],q[3]).normalize();remoteRig.visible=tracking;}
-  }else if(d&&d.type==='state'&&!d.tracking){lastRemote=null;if(remoteRig)remoteRig.visible=false;}
- });
- c.on('close',()=>{say('Conexão encerrada.');$('start').disabled=true;if(remoteRig)remoteRig.visible=false;});
- c.on('error',e=>say('Erro de conexão: '+(e.message||e.type||'rede')));
-}
-$('create').onclick=()=>{
- if(peer)return;if(!window.Peer){say('PeerJS não carregou.');return;}
- role='host';const code=Math.random().toString(36).slice(2,8).toUpperCase();$('code').textContent=code;
- peer=new Peer('eo-'+code.toLowerCase()+'-host');
- peer.on('open',()=>say('Sala criada: '+code+'. Digite o código no outro celular.'));
- peer.on('connection',c=>{if(conn){c.close();return;}connect(c);});
- peer.on('error',e=>say('Falha ao criar sala: '+(e.message||e.type||'erro')));
-};
-$('join').onclick=()=>{
- if(peer)return;if(!window.Peer){say('PeerJS não carregou.');return;}
- const code=$('joinCode').value.trim().toLowerCase();if(!/^[a-z0-9]{6}$/.test(code)){say('Digite o código de seis caracteres.');return;}
- role='guest';peer=new Peer();peer.on('open',()=>{say('Conectando à sala '+code+'…');connect(peer.connect('eo-'+code+'-host',{reliable:true}));});
- peer.on('error',e=>say('Falha ao entrar: '+(e.message||e.type||'erro')));
-};
+window.energyOpsSetConnection=function(c){conn=c;};
 function makeAvatar(color){
  const g=new THREE.Group();
  const body=new THREE.Mesh(new THREE.SphereGeometry(.12,18,14),new THREE.MeshStandardMaterial({color:color,emissive:color,emissiveIntensity:.45}));
@@ -90,7 +63,7 @@ function makeAvatar(color){
  return g;
 }
 async function startAR(){
- if(running)return;if(!conn||!conn.open){say('Conecte os dois celulares primeiro.');return;}
+ if(running)return;if(!window.energyOpsConn||!window.energyOpsConn.open){say('Conecte os dois celulares primeiro.');return;}
  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){say('Abra esta página em HTTPS num navegador com câmera.');return;}
  $('start').disabled=true;$('start').textContent='PREPARANDO…';panel.style.display='block';setup.style.display='none';$('stop').style.display='block';
  try{
@@ -104,7 +77,7 @@ async function startAR(){
   const local=makeAvatar(0x00dfff);local.position.set(0,.015,0);gameRoot.add(local);
   remoteRig=makeAvatar(0xffea00);remoteRig.visible=false;gameRoot.add(remoteRig);
   anchor.onTargetFound=()=>{tracking=true;lastFoundAt=Date.now();if(remoteRig&&lastRemote)remoteRig.visible=true;};
-  anchor.onTargetLost=()=>{tracking=false;if(remoteRig)remoteRig.visible=false;if(conn&&conn.open)conn.send({type:'state',tracking:false});};
+  anchor.onTargetLost=()=>{tracking=false;if(remoteRig)remoteRig.visible=false;if(window.energyOpsConn&&window.energyOpsConn.open)window.energyOpsConn.send({type:'state',tracking:false});};
   await mindar.start();
   running=true;renderer.setAnimationLoop(()=>{
    if(tracking){
@@ -118,8 +91,8 @@ async function startAR(){
     const e=new THREE.Euler().setFromQuaternion(q,'YXZ');
     localRotation=[e.x,e.y,e.z];
     const now=performance.now();
-    if(conn&&conn.open&&now-lastSend>100){
-     lastSend=now;conn.send({type:'pose',tracking:true,position:localPosition,quaternion:[q.x,q.y,q.z,q.w],rotation:localRotation,at:Date.now()});
+    if(window.energyOpsConn&&window.energyOpsConn.open&&now-lastSend>100){
+     lastSend=now;window.energyOpsConn.send({type:'pose',tracking:true,position:localPosition,quaternion:[q.x,q.y,q.z,q.w],rotation:localRotation,at:Date.now()});
     }
    }
    renderer.render(scene,camera);
@@ -131,13 +104,13 @@ async function startAR(){
   running=false;setup.style.display='flex';$('start').disabled=false;$('start').textContent='TENTAR NOVAMENTE';$('stop').style.display='none';
  }
 }
-$('start').onclick=startAR;
+window.energyOpsStartAR=startAR;
 function updatePanel(){
  if(panel.style.display==='none')return;
  const age=lastRemote?Date.now()-lastRemote.at:null;
  const lp=localPosition?'X '+localPosition.map(v=>v.toFixed(2)).join(' · '):'aguardando';
  const rp=lastRemote?'X '+lastRemote.position.map(v=>v.toFixed(2)).join(' · '):'aguardando';
- panel.textContent='ENERGY OPS · MINDAR / THREE.JS\nEstado: '+(tracking?'MARCADOR DETECTADO':'PROCURANDO MARCADOR')+'\nSua câmera: '+lp+'\nOutro celular: '+rp+(age!==null?' · '+age+' ms':'')+'\nMarcador: 15 × 15 cm · deitado\nOrigem: centro do marcador · eixo Y para cima\nConexão: '+(conn&&conn.open?'ativa':'indisponível');
+ panel.textContent='ENERGY OPS · MINDAR / THREE.JS\nEstado: '+(tracking?'MARCADOR DETECTADO':'PROCURANDO MARCADOR')+'\nSua câmera: '+lp+'\nOutro celular: '+rp+(age!==null?' · '+age+' ms':'')+'\nMarcador: 15 × 15 cm · deitado\nOrigem: centro do marcador · eixo Y para cima\nConexão: '+(window.energyOpsConn&&window.energyOpsConn.open?'ativa':'indisponível');
 }
 setInterval(updatePanel,250);
 $('stop').onclick=async()=>{
@@ -145,9 +118,58 @@ $('stop').onclick=async()=>{
  try{if(mindar){mindar.renderer.setAnimationLoop(null);await mindar.stop();}}catch(e){console.warn(e);}
  if(conn&&conn.open)conn.send({type:'state',tracking:false});
  if(remoteRig)remoteRig.visible=false;
- panel.style.display='none';$('stop').style.display='none';setup.style.display='flex';$('start').disabled=!(conn&&conn.open);$('start').textContent='INICIAR CÂMERA E RASTREAMENTO';
+ panel.style.display='none';$('stop').style.display='none';setup.style.display='flex';$('start').disabled=!(window.energyOpsConn&&window.energyOpsConn.open);$('start').textContent='INICIAR CÂMERA E RASTREAMENTO';
 };
-window.addEventListener('beforeunload',()=>{try{if(peer)peer.destroy();}catch(e){}});
+
 </script>
+
+<script>
+(function(){
+ const $=id=>document.getElementById(id);
+ const net=$('net');
+ let peer=null,connection=null,role='';
+ function status(t){net.textContent=t;}
+ function attach(c){
+  connection=c;window.energyOpsConn=c;
+  if(window.energyOpsSetConnection)window.energyOpsSetConnection(c);
+  c.on('open',()=>{$('start').disabled=false;status('✓ CELULARES CONECTADOS. Agora inicie a câmera nos dois aparelhos.');});
+  c.on('data',d=>{
+   if(d&&d.type==='pose'&&Array.isArray(d.position)&&Array.isArray(d.quaternion)){
+    const p=d.position.map(Number),q=d.quaternion.map(Number);
+    if(p.length===3&&q.length===4&&p.every(Number.isFinite)&&q.every(Number.isFinite)){
+     window.energyOpsLastRemote={position:p,quaternion:q,at:Date.now()};
+     if(window.energyOpsRemoteUpdate)window.energyOpsRemoteUpdate(window.energyOpsLastRemote);
+    }
+   }else if(d&&d.type==='state'&&!d.tracking){window.energyOpsLastRemote=null;}
+  });
+  c.on('close',()=>{$('start').disabled=true;status('Conexão encerrada.');});
+  c.on('error',e=>status('Erro de conexão: '+(e.message||e.type||'rede')));
+ }
+ $('create').addEventListener('click',()=>{
+  if(peer)return;
+  if(!window.Peer){status('PeerJS não carregou. Recarregue a página e tente novamente.');return;}
+  role='host';const code=Math.random().toString(36).slice(2,8).toUpperCase();
+  $('code').textContent=code;status('Criando sala…');
+  peer=new Peer('eo-'+code.toLowerCase()+'-host');
+  peer.on('open',()=>status('✓ Sala criada. Código: '+code+'. Digite no outro celular.'));
+  peer.on('connection',c=>{if(connection){c.close();return;}attach(c);});
+  peer.on('error',e=>{status('Erro ao criar sala: '+(e.message||e.type||'erro'));peer=null;});
+ });
+ $('join').addEventListener('click',()=>{
+  if(peer)return;
+  if(!window.Peer){status('PeerJS não carregou. Recarregue a página e tente novamente.');return;}
+  const code=$('joinCode').value.trim().toLowerCase();
+  if(!/^[a-z0-9]{6}$/.test(code)){status('Digite o código de seis caracteres.');return;}
+  role='guest';status('Conectando à sala '+code+'…');peer=new Peer();
+  peer.on('open',()=>attach(peer.connect('eo-'+code+'-host',{reliable:true})));
+  peer.on('error',e=>{status('Erro ao entrar na sala: '+(e.message||e.type||'erro'));peer=null;});
+ });
+ $('start').addEventListener('click',()=>{if(window.energyOpsStartAR)window.energyOpsStartAR();else status('O módulo de câmera não carregou. A conexão da sala está funcionando; recarregue a página para corrigir a câmera.');});
+ window.addEventListener('error',e=>{status('Erro do módulo: '+(e.message||'falha JavaScript'));});
+ window.addEventListener('unhandledrejection',e=>{status('Falha ao carregar módulo: '+(e.reason&&e.reason.message||String(e.reason)));});
+ 
+})();
+</script>
+
 </body>
 </html>
