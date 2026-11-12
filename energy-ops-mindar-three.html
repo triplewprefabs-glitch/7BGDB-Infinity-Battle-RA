@@ -18,7 +18,7 @@ button,input{width:100%;padding:12px;margin:6px 0;border:1px solid #52d8f2;borde
 #hint{font-size:11px;color:#ffdf9c}
 </style>
 <script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/","mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"}}
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/","mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"}}
 </script>
 <script defer src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
@@ -116,7 +116,7 @@ setInterval(updatePanel,250);
 $('stop').onclick=async()=>{
  running=false;tracking=false;
  try{if(mindar){mindar.renderer.setAnimationLoop(null);await mindar.stop();}}catch(e){console.warn(e);}
- if(conn&&conn.open)conn.send({type:'state',tracking:false});
+ if(window.energyOpsConn&&window.energyOpsConn.open)window.energyOpsConn.send({type:'state',tracking:false});
  if(remoteRig)remoteRig.visible=false;
  panel.style.display='none';$('stop').style.display='none';setup.style.display='flex';$('start').disabled=!(window.energyOpsConn&&window.energyOpsConn.open);$('start').textContent='INICIAR CÂMERA E RASTREAMENTO';
 };
