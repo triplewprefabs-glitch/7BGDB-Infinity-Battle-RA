@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06111e">
+<title>ENERGY OPS · MindAR Three.js</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020811;color:#eafaff;font-family:system-ui,Arial,sans-serif}
+#arContainer{position:fixed;inset:0;z-index:0;background:#000}#arContainer video{width:100%!important;height:100%!important;object-fit:cover!important}#arContainer canvas{position:absolute!important;inset:0;width:100%!important;height:100%!important;pointer-events:none}
+#panel{position:fixed;z-index:5;top:calc(env(safe-area-inset-top) + 8px);left:8px;right:8px;max-height:45dvh;overflow:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321df;backdrop-filter:blur(6px);font-size:12px;line-height:1.45;white-space:pre-wrap;pointer-events:auto}
+#setup{position:fixed;z-index:10;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:#020914ed}
+.card{width:min(440px,100%);max-height:90dvh;overflow:auto;padding:20px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
+h1{margin:0 0 8px;color:#72e7ff;font-size:21px}p{font-size:13px;line-height:1.5;color:#c5dce7}
+button,input{width:100%;padding:12px;margin:6px 0;border:1px solid #52d8f2;border-radius:9px;background:#10283a;color:white;font-size:14px}button{background:#087da2;font-weight:800}button:disabled{opacity:.4}
+#code{font-size:24px;letter-spacing:5px;text-align:center;color:#ffea00;font-weight:900}
+#stop{position:fixed;z-index:7;left:10px;bottom:calc(env(safe-area-inset-bottom) + 12px);width:auto;background:#682532;display:none}
+#hint{font-size:11px;color:#ffdf9c}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/","mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"}}
+</script>
+<script defer src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<div id="arContainer"></div>
+<div id="panel" style="display:none">Inicializando…</div>
+<div id="setup">
+ <div class="card">
+  <h1>ENERGY OPS · TESTE MINDAR + THREE.JS</h1>
+  <p>Esta página testa a integração do rastreamento MindAR diretamente com o mesmo motor Three.js usado no jogo. O marcador deve ficar <b>deitado no chão, com a imagem voltada para cima</b>.</p>
+  <p><b>Celular 1:</b> crie a sala e informe o código ao outro aparelho.</p>
+  <button id="create">CRIAR SALA</button>
+  <div id="code">------</div>
+  <p><b>Celular 2:</b> digite o código da sala.</p>
+  <input id="joinCode" maxlength="6" placeholder="CÓDIGO DA SALA" autocomplete="off" autocapitalize="characters">
+  <button id="join">ENTRAR NA SALA</button>
+  <p id="net">Aguardando conexão.</p>
+  <button id="start" disabled>INICIAR CÂMERA E RASTREAMENTO</button>
+  <p id="hint">Mantenha o marcador inteiro visível. Primeiro confirme a conexão dos dois celulares.</p>
+ </div>
+</div>
+<button id="stop">ENCERRAR TESTE</button>
+<script type="module">
+import * as THREE from 'three';
+import {MindARThree} from 'mindar-image-three';
+const $=id=>document.getElementById(id);
+const net=$('net'),panel=$('panel'),setup=$('setup');
+let peer=null,conn=null,role='',mindar=null,anchor=null,gameRoot=null,remoteRig=null;
+let running=false,tracking=false,lastSend=0,lastRemote=null,rafStarted=false;
+let localPosition=null,localRotation=null,frameCount=0,lastFoundAt=0;
+const imageTargetSrc='./energy-ops-marker.mind';
+function say(t){net.textContent=t;if(panel.style.display!=='none')panel.textContent=t;}
+function connect(c){
+ conn=c;
+ c.on('open',()=>{$('start').disabled=false;say('✓ CELULARES CONECTADOS. Agora inicie a câmera nos dois aparelhos.');});
+ c.on('data',d=>{
+  if(d&&d.type==='pose'&&Array.isArray(d.position)&&Array.isArray(d.quaternion)&&d.position.length===3&&d.quaternion.length===4){
+   const p=d.position.map(Number),q=d.quaternion.map(Number);
+   if(!p.every(Number.isFinite)||!q.every(Number.isFinite))return;
+   lastRemote={position:p,quaternion:q,at:Date.now()};
+   if(remoteRig){remoteRig.position.set(p[0],p[1],p[2]);remoteRig.quaternion.set(q[0],q[1],q[2],q[3]).normalize();remoteRig.visible=tracking;}
+  }else if(d&&d.type==='state'&&!d.tracking){lastRemote=null;if(remoteRig)remoteRig.visible=false;}
+ });
+ c.on('close',()=>{say('Conexão encerrada.');$('start').disabled=true;if(remoteRig)remoteRig.visible=false;});
+ c.on('error',e=>say('Erro de conexão: '+(e.message||e.type||'rede')));
+}
+$('create').onclick=()=>{
+ if(peer)return;if(!window.Peer){say('PeerJS não carregou.');return;}
+ role='host';const code=Math.random().toString(36).slice(2,8).toUpperCase();$('code').textContent=code;
+ peer=new Peer('eo-'+code.toLowerCase()+'-host');
+ peer.on('open',()=>say('Sala criada: '+code+'. Digite o código no outro celular.'));
+ peer.on('connection',c=>{if(conn){c.close();return;}connect(c);});
+ peer.on('error',e=>say('Falha ao criar sala: '+(e.message||e.type||'erro')));
+};
+$('join').onclick=()=>{
+ if(peer)return;if(!window.Peer){say('PeerJS não carregou.');return;}
+ const code=$('joinCode').value.trim().toLowerCase();if(!/^[a-z0-9]{6}$/.test(code)){say('Digite o código de seis caracteres.');return;}
+ role='guest';peer=new Peer();peer.on('open',()=>{say('Conectando à sala '+code+'…');connect(peer.connect('eo-'+code+'-host',{reliable:true}));});
+ peer.on('error',e=>say('Falha ao entrar: '+(e.message||e.type||'erro')));
+};
+function makeAvatar(color){
+ const g=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.SphereGeometry(.12,18,14),new THREE.MeshStandardMaterial({color:color,emissive:color,emissiveIntensity:.45}));
+ g.add(body);
+ const direction=new THREE.Mesh(new THREE.ConeGeometry(.075,.24,16),new THREE.MeshStandardMaterial({color:0xff9b42,emissive:0x7a2600,emissiveIntensity:.6}));
+ direction.rotation.x=-Math.PI/2;direction.position.z=-.23;g.add(direction);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(.2,.012,8,32),new THREE.MeshBasicMaterial({color:color}));
+ ring.rotation.x=Math.PI/2;g.add(ring);
+ return g;
+}
+async function startAR(){
+ if(running)return;if(!conn||!conn.open){say('Conecte os dois celulares primeiro.');return;}
+ if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){say('Abra esta página em HTTPS num navegador com câmera.');return;}
+ $('start').disabled=true;$('start').textContent='PREPARANDO…';panel.style.display='block';setup.style.display='none';$('stop').style.display='block';
+ try{
+  mindar=new MindARThree({container:$('arContainer'),imageTargetSrc:imageTargetSrc,maxTrack:1,filterMinCF:.005,filterBeta:1500,warmupTolerance:3,missTolerance:12,uiLoading:'no',uiScanning:'no',uiError:'no'});
+  const renderer=mindar.renderer,scene=mindar.scene,camera=mindar.camera;
+  anchor=mindar.addAnchor(0);
+  gameRoot=new THREE.Group();gameRoot.rotation.x=-Math.PI/2;anchor.group.add(gameRoot);
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(.16,48),new THREE.MeshBasicMaterial({color:0x00dfff,transparent:true,opacity:.12,side:THREE.DoubleSide}));
+  floor.rotation.x=-Math.PI/2;floor.position.y=.002;gameRoot.add(floor);
+  const axes=new THREE.AxesHelper(.28);gameRoot.add(axes);
+  const local=makeAvatar(0x00dfff);local.position.set(0,.015,0);gameRoot.add(local);
+  remoteRig=makeAvatar(0xffea00);remoteRig.visible=false;gameRoot.add(remoteRig);
+  anchor.onTargetFound=()=>{tracking=true;lastFoundAt=Date.now();if(remoteRig&&lastRemote)remoteRig.visible=true;};
+  anchor.onTargetLost=()=>{tracking=false;if(remoteRig)remoteRig.visible=false;if(conn&&conn.open)conn.send({type:'state',tracking:false});};
+  await mindar.start();
+  running=true;renderer.setAnimationLoop(()=>{
+   if(tracking){
+    anchor.group.updateMatrixWorld(true);camera.updateMatrixWorld(true);
+    const relativeRaw=new THREE.Matrix4().copy(anchor.group.matrixWorld).invert().multiply(camera.matrixWorld);
+    // Converte o referencial da imagem (XY, normal Z) para o referencial do jogo (Y para cima).
+    const relativeGame=new THREE.Matrix4().copy(gameRoot.matrix).invert().multiply(relativeRaw);
+    const p=new THREE.Vector3(),q=new THREE.Quaternion(),scale=new THREE.Vector3();
+    relativeGame.decompose(p,q,scale);
+    localPosition=[p.x,p.y,p.z];
+    const e=new THREE.Euler().setFromQuaternion(q,'YXZ');
+    localRotation=[e.x,e.y,e.z];
+    const now=performance.now();
+    if(conn&&conn.open&&now-lastSend>100){
+     lastSend=now;conn.send({type:'pose',tracking:true,position:localPosition,quaternion:[q.x,q.y,q.z,q.w],rotation:localRotation,at:Date.now()});
+    }
+   }
+   renderer.render(scene,camera);
+  });
+  say('Câmera iniciada. Aponte para o marcador deitado no chão.');
+ }catch(e){
+  console.error(e);say('Falha ao iniciar MindAR: '+(e.message||String(e)));
+  try{if(mindar)await mindar.stop();}catch(_){}
+  running=false;setup.style.display='flex';$('start').disabled=false;$('start').textContent='TENTAR NOVAMENTE';$('stop').style.display='none';
+ }
+}
+$('start').onclick=startAR;
+function updatePanel(){
+ if(panel.style.display==='none')return;
+ const age=lastRemote?Date.now()-lastRemote.at:null;
+ const lp=localPosition?'X '+localPosition.map(v=>v.toFixed(2)).join(' · '):'aguardando';
+ const rp=lastRemote?'X '+lastRemote.position.map(v=>v.toFixed(2)).join(' · '):'aguardando';
+ panel.textContent='ENERGY OPS · MINDAR / THREE.JS\nEstado: '+(tracking?'MARCADOR DETECTADO':'PROCURANDO MARCADOR')+'\nSua câmera: '+lp+'\nOutro celular: '+rp+(age!==null?' · '+age+' ms':'')+'\nMarcador: 15 × 15 cm · deitado\nOrigem: centro do marcador · eixo Y para cima\nConexão: '+(conn&&conn.open?'ativa':'indisponível');
+}
+setInterval(updatePanel,250);
+$('stop').onclick=async()=>{
+ running=false;tracking=false;
+ try{if(mindar){mindar.renderer.setAnimationLoop(null);await mindar.stop();}}catch(e){console.warn(e);}
+ if(conn&&conn.open)conn.send({type:'state',tracking:false});
+ if(remoteRig)remoteRig.visible=false;
+ panel.style.display='none';$('stop').style.display='none';setup.style.display='flex';$('start').disabled=!(conn&&conn.open);$('start').textContent='INICIAR CÂMERA E RASTREAMENTO';
+};
+window.addEventListener('beforeunload',()=>{try{if(peer)peer.destroy();}catch(e){}});
+</script>
+</body>
+</html>
