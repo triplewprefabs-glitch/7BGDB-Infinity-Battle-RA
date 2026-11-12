@@ -105,6 +105,15 @@ async function startAR(){
  }
 }
 window.energyOpsStartAR=startAR;
+window.energyOpsRemoteUpdate=function(data){
+ if(!data||!Array.isArray(data.position)||!Array.isArray(data.quaternion))return;
+ lastRemote={position:data.position.map(Number),quaternion:data.quaternion.map(Number),at:data.at||Date.now()};
+ if(remoteRig){
+  remoteRig.position.set(lastRemote.position[0],lastRemote.position[1],lastRemote.position[2]);
+  remoteRig.quaternion.set(lastRemote.quaternion[0],lastRemote.quaternion[1],lastRemote.quaternion[2],lastRemote.quaternion[3]).normalize();
+  remoteRig.visible=tracking;
+ }
+};
 function updatePanel(){
  if(panel.style.display==='none')return;
  const age=lastRemote?Date.now()-lastRemote.at:null;
