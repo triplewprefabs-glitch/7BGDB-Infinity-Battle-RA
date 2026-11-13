@@ -13,7 +13,7 @@ html.xr-session-active,body.xr-session-active{background:transparent!important}
 #xrOverlayRoot{display:contents}
 #xrOverlayRoot:xr-overlay{display:block!important;background:rgba(0,0,0,0)!important;position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;box-sizing:border-box!important;transform:none!important;contain:none!important;z-index:2147483646!important;overflow:visible!important;pointer-events:none!important}
 #xrCanvas{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;background:transparent!important;z-index:1!important;pointer-events:none}
-#setup{position:fixed;z-index:20;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#020914ed}
+#setup{position:fixed;z-index:20;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#020914ed}#setup.camera-active{background:transparent;pointer-events:none}#setup.camera-active .card{pointer-events:auto;background:#061827ed;max-height:70dvh;overflow:auto}
 .card{width:min(480px,100%);max-height:94dvh;overflow:auto;padding:18px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
 h1{margin:0 0 8px;color:#72e7ff;font-size:20px}
 p{font-size:13px;line-height:1.45;color:#c5dce7}
@@ -69,7 +69,7 @@ function cleanup(){
  releaseCamera();
  if(renderer){renderer.setAnimationLoop(null);renderer.dispose();renderer.domElement.remove();renderer=null;}
  document.documentElement.classList.remove('xr-session-active');document.body.classList.remove('xr-session-active');
- $('panel').style.display='none';$('copy').style.display='none';$('stop').style.display='none';$('setup').style.display='flex';
+ $('panel').style.display='none';$('copy').style.display='none';$('stop').style.display='none';$('setup').style.display='flex';$('setup').classList.remove('camera-active');
  $('camera').disabled=false;$('toXR').disabled=true;
 }
 $('camera').onclick=async()=>{
@@ -78,7 +78,7 @@ $('camera').onclick=async()=>{
   stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'}}});
   const v=$('cameraPreview');v.srcObject=stream;v.style.display='block';await v.play();
   diag=cameraInfo();$('panel').textContent=diag;$('panel').style.display='block';$('copy').style.display='block';
-  $('setup').style.display='none';$('toXR').disabled=false;
+  $('setup').style.display='flex';$('setup').classList.add('camera-active');$('toXR').disabled=false;
   $('message').textContent='Câmera normal ativa. Não mova o aparelho; compare o mesmo objeto nas duas etapas.';
  }catch(e){$('message').textContent='FALHA CÂMERA: '+(e.message||String(e));$('camera').disabled=false;}
 };
