@@ -54,6 +54,27 @@ let xrSession=null,xrRenderer=null,xrReferenceSpace=null,xrMarkerMatrix=null,xrF
 let mindarFrames=0,phase='idle';
 const target='./energy-ops-marker.mind';
 function report(message){status.textContent=message;panel.textContent=message;}
+async function forceReleaseMindARCamera(){
+ const root=$('mindarRoot');
+ let stoppedTracks=0;
+ root.querySelectorAll('video').forEach(video=>{
+  try{video.pause();}catch(_){}
+  const stream=video.srcObject;
+  if(stream&&typeof stream.getTracks==='function'){
+   stream.getTracks().forEach(track=>{try{track.stop();stoppedTracks++;}catch(_){}});
+  }
+  try{video.srcObject=null;}catch(_){}
+  try{video.removeAttribute('src');video.load();}catch(_){}
+  video.remove();
+ });
+ root.querySelectorAll('canvas').forEach(canvas=>canvas.remove());
+ try{mindarRenderer?.setAnimationLoop(null);}catch(_){}
+ try{mindarRenderer?.dispose();}catch(_){}
+ root.replaceChildren();
+ // Give Chrome/ARCore a short interval to release the camera before WebXR requests it.
+ await new Promise(resolve=>setTimeout(resolve,350));
+ return stoppedTracks;
+}
 function matrixText(m){const e=m.elements;return 'posição ['+e[12].toFixed(3)+', '+e[13].toFixed(3)+', '+e[14].toFixed(3)+']';}
 $('startMind').onclick=async()=>{
  $('startMind').disabled=true;report('Iniciando MindAR e câmera…');
@@ -79,9 +100,15 @@ $('startMind').onclick=async()=>{
 $('stopMind').onclick=async()=>{
  if(!markerCameraMatrix){report('Ainda não foi possível capturar a pose do marcador. Mantenha-o visível e tente novamente.');return;}
  const snapshot=markerCameraMatrix.clone();
- try{if(mindarRenderer)mindarRenderer.setAnimationLoop(null);if(mindar)await mindar.stop();}catch(e){report('Erro ao encerrar MindAR: '+(e.message||String(e)));return;}
- markerCameraMatrix=snapshot;phase='handoff';$('mindarRoot').style.display='none';$('stopMind').disabled=true;$('captureNow').disabled=true;$('startXR').disabled=false;$('startXRNow').disabled=false;
- report('CAPTURA MINDAR SALVA\n'+matrixText(snapshot)+'\nMindAR encerrado. Agora toque em “3 · INICIAR WEBXR” para abrir a nova sessão de câmera.');
+ try{
+  if(mindarRenderer)mindarRenderer.setAnimationLoop(null);
+  if(mindar)await mindar.stop();
+  const releasedTracks=await forceReleaseMindARCamera();
+  $('mindarRoot').style.display='none';
+  markerCameraMatrix=snapshot;phase='handoff';
+  $('stopMind').disabled=true;$('captureNow').disabled=true;$('startXR').disabled=false;$('startXRNow').disabled=false;
+  report('CAPTURA MINDAR SALVA\\n'+matrixText(snapshot)+'\\nMindAR encerrado. Trilhas de câmera finalizadas: '+releasedTracks+'. Agora inicie o WebXR.');
+ }catch(e){report('Erro ao encerrar/liberar MindAR: '+(e.message||String(e)));return;}
 };
 $('startXR').onclick=async()=>{
  $('startXR').disabled=true;$('startXRNow').disabled=true;report('Solicitando sessão WebXR immersive-ar…');
