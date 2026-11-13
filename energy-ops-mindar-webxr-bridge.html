@@ -106,7 +106,7 @@ $('startXR').onclick=async()=>{
     }
     const cameraInMarker=xrMarkerMatrix.clone().invert().multiply(viewerMatrix);
     const p=new THREE.Vector3().setFromMatrixPosition(cameraInMarker);
-    panel.textContent='WEBXR ATIVO · HANDOFF EXECUTADO\nFrames WebXR: '+xrFrames+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem de marcador calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nMantenha o aparelho imóvel por alguns segundos e observe se as coordenadas estabilizam.';
+    const attrs=xrRenderer.getContext().getContextAttributes();panel.textContent='WEBXR ATIVO · DIAGNÓSTICO\nFrames WebXR: '+xrFrames+'\nModo de composição XR: '+(xrSession.environmentBlendMode||'não informado')+'\nVisibilidade: '+(xrSession.visibilityState||'não informada')+'\nCanvas alpha: '+(attrs?attrs.alpha:'não informado')+' · premultipliedAlpha: '+(attrs?attrs.premultipliedAlpha:'não informado')+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nCoordenadas ainda não validadas para calibração.';
    }else{
     panel.textContent='Sessão WebXR aberta, aguardando viewer pose…\nFrames: '+xrFrames;
    }
