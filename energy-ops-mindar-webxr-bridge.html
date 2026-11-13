@@ -124,6 +124,12 @@ $('startXR').onclick=async()=>{
   xrRenderer.xr.enabled=true;xrRenderer.xr.setReferenceSpaceType('local');xrRenderer.domElement.id='xrCanvas';document.body.appendChild(xrRenderer.domElement);
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
   const markerViz=new THREE.AxesHelper(.25);scene.add(markerViz);
+  // Superfície de referência de 15 cm para conferir visualmente a pose do marcador após o handoff.
+  const markerSurface=new THREE.Group();markerSurface.matrixAutoUpdate=false;scene.add(markerSurface);
+  const markerPlane=new THREE.Mesh(new THREE.PlaneGeometry(.15,.15),new THREE.MeshBasicMaterial({color:0x00d9ff,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
+  markerPlane.position.z=.002;markerSurface.add(markerPlane);
+  const markerOutline=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(.15,.15)),new THREE.LineBasicMaterial({color:0x00eaff}));
+  markerOutline.position.z=.004;markerSurface.add(markerOutline);
   const sphere=new THREE.Mesh(new THREE.SphereGeometry(.035,16,12),new THREE.MeshBasicMaterial({color:0xffea00}));scene.add(sphere);
   await xrRenderer.xr.setSession(xrSession);
   xrReferenceSpace=await xrSession.requestReferenceSpace('local');
@@ -137,11 +143,12 @@ $('startXR').onclick=async()=>{
      // T(XR<-marcador) = T(XR<-camera) × inverse(T(marcador<-camera))
      xrMarkerMatrix=viewerMatrix.clone().multiply(markerCameraMatrix.clone().invert());
      markerViz.matrixAutoUpdate=false;markerViz.matrix.copy(xrMarkerMatrix);markerViz.matrixWorldNeedsUpdate=true;
+     markerSurface.matrix.copy(xrMarkerMatrix);markerSurface.matrixWorldNeedsUpdate=true;
      sphere.position.setFromMatrixPosition(xrMarkerMatrix);
     }
     const cameraInMarker=xrMarkerMatrix.clone().invert().multiply(viewerMatrix);
     const p=new THREE.Vector3().setFromMatrixPosition(cameraInMarker);
-    const attrs=xrRenderer.getContext().getContextAttributes();const vp=xrSession.renderState.baseLayer?.getViewport(pose.views[0]);const rect=xrRenderer.domElement.getBoundingClientRect();const vv=window.visualViewport;const proj=pose.views[0].projectionMatrix;const fovV=(2*Math.atan(1/proj[5])*180/Math.PI).toFixed(1);const fovH=(2*Math.atan(1/proj[0])*180/Math.PI).toFixed(1);panel.textContent='WEBXR ATIVO · DIAGNÓSTICO\nFrames WebXR: '+xrFrames+'\nModo de composição XR: '+(xrSession.environmentBlendMode||'não informado')+'\nVisibilidade: '+(xrSession.visibilityState||'não informada')+'\nViews XR: '+pose.views.length+' · FOV vertical: '+fovV+'° · horizontal: '+fovH+'°\nCanvas alpha: '+(attrs?attrs.alpha:'não informado')+' · premultipliedAlpha: '+(attrs?attrs.premultipliedAlpha:'não informado')+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nViewport XR: '+(vp?vp.width+'×'+vp.height:'indisponível')+'\nCanvas CSS: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · interno: '+xrRenderer.domElement.width+'×'+xrRenderer.domElement.height+'\nJanela: '+innerWidth+'×'+innerHeight+' · visualViewport: '+(vv?Math.round(vv.width)+'×'+Math.round(vv.height)+' escala '+vv.scale:'indisponível')+'\nDPR: '+devicePixelRatio+' · Coordenadas ainda não validadas para calibração.';
+    const attrs=xrRenderer.getContext().getContextAttributes();const vp=xrSession.renderState.baseLayer?.getViewport(pose.views[0]);const rect=xrRenderer.domElement.getBoundingClientRect();const vv=window.visualViewport;const proj=pose.views[0].projectionMatrix;const fovV=(2*Math.atan(1/proj[5])*180/Math.PI).toFixed(1);const fovH=(2*Math.atan(1/proj[0])*180/Math.PI).toFixed(1);panel.textContent='WEBXR ATIVO · DIAGNÓSTICO\nFrames WebXR: '+xrFrames+'\nModo de composição XR: '+(xrSession.environmentBlendMode||'não informado')+'\nVisibilidade: '+(xrSession.visibilityState||'não informada')+'\nViews XR: '+pose.views.length+' · FOV vertical: '+fovV+'° · horizontal: '+fovH+'°\nCanvas alpha: '+(attrs?attrs.alpha:'não informado')+' · premultipliedAlpha: '+(attrs?attrs.premultipliedAlpha:'não informado')+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nViewport XR: '+(vp?vp.width+'×'+vp.height:'indisponível')+'\nCanvas CSS: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · interno: '+xrRenderer.domElement.width+'×'+xrRenderer.domElement.height+'\nJanela: '+innerWidth+'×'+innerHeight+' · visualViewport: '+(vv?Math.round(vv.width)+'×'+Math.round(vv.height)+' escala '+vv.scale:'indisponível')+'\nDPR: '+devicePixelRatio+' · Quadrado ciano = área estimada do marcador (15×15 cm); confira alinhamento físico.';
    }else{
     panel.textContent='Sessão WebXR aberta, aguardando viewer pose…\nFrames: '+xrFrames;
    }
