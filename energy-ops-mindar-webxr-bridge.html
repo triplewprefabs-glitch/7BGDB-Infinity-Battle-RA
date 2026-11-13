@@ -83,10 +83,11 @@ $('startXR').onclick=async()=>{
   const supported=await navigator.xr.isSessionSupported('immersive-ar');
   if(!supported)throw new Error('Este navegador/aparelho não oferece immersive-ar.');
   xrSession=await navigator.xr.requestSession('immersive-ar',{optionalFeatures:['local','dom-overlay'],domOverlay:{root:document.body}});
-  $('xrRoot').style.display='block';
-  xrRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
-  xrRenderer.setPixelRatio(Math.min(devicePixelRatio,2));xrRenderer.setSize(innerWidth,innerHeight);xrRenderer.setClearColor(0x000000,0);
-  xrRenderer.xr.enabled=true;xrRenderer.xr.setReferenceSpaceType('local');$('xrRoot').appendChild(xrRenderer.domElement);
+  document.documentElement.classList.add('xr-session-active');document.body.classList.add('xr-session-active');
+  $('xrRoot').style.display='none';
+  xrRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
+  xrRenderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25));xrRenderer.setSize(innerWidth,innerHeight);xrRenderer.setClearColor(0x000000,0);
+  xrRenderer.xr.enabled=true;xrRenderer.xr.setReferenceSpaceType('local');xrRenderer.domElement.id='xrCanvas';document.body.appendChild(xrRenderer.domElement);
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
   const markerViz=new THREE.AxesHelper(.25);scene.add(markerViz);
   const sphere=new THREE.Mesh(new THREE.SphereGeometry(.035,16,12),new THREE.MeshBasicMaterial({color:0xffea00}));scene.add(sphere);
@@ -112,7 +113,7 @@ $('startXR').onclick=async()=>{
    }
    xrRenderer.render(scene,camera);
   });
-  xrSession.addEventListener('end',()=>{phase='ended';report('Sessão WebXR encerrada.');$('startXR').disabled=false;});
+  xrSession.addEventListener('end',()=>{xrRenderer?.setAnimationLoop(null);xrRenderer?.dispose();xrRenderer?.domElement.remove();document.documentElement.classList.remove('xr-session-active');document.body.classList.remove('xr-session-active');phase='ended';report('Sessão WebXR encerrada.');$('startXR').disabled=false;});
   report('Sessão WebXR aberta. Aguardando os primeiros quadros e a pose da câmera…');
  }catch(e){report('FALHA NA TRANSIÇÃO WEBXR: '+(e.message||String(e))+'\nMindAR já foi encerrado. A falha será registrada sem alterar o jogo principal.');$('startXR').disabled=false;$('startXRNow').disabled=false;}
 };
