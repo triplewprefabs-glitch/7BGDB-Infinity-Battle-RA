@@ -9,14 +9,14 @@
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020811;color:#eafaff;font-family:system-ui,Arial,sans-serif}
 #mindarRoot,#xrRoot{position:fixed;inset:0;background:#000}#mindarRoot video,#mindarRoot canvas,#xrRoot canvas{position:absolute!important;inset:0;width:100%!important;height:100%!important;object-fit:cover}
 #xrRoot{display:none}
-#panel{position:fixed;z-index:5;top:env(safe-area-inset-top);left:8px;right:8px;max-height:24dvh;overflow:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:12px;line-height:1.45;white-space:pre-wrap}
+#panel{position:fixed;z-index:40;top:calc(env(safe-area-inset-top) + 118px);left:8px;right:8px;max-height:18dvh;overflow:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:12px;line-height:1.45;white-space:pre-wrap}
 #setup{position:fixed;z-index:10;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#020914ed}
 .card{width:min(460px,100%);max-height:94dvh;overflow:auto;padding:18px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
 h1{margin:0 0 8px;color:#72e7ff;font-size:20px}p{font-size:13px;line-height:1.45;color:#c5dce7}
 button{width:100%;padding:12px;margin:5px 0;border:1px solid #52d8f2;border-radius:9px;background:#087da2;color:white;font-size:14px;font-weight:800}
-button:disabled{opacity:.35}#stop{position:fixed;z-index:32;left:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);width:auto;background:#682532;display:none}
-#stageControls{position:fixed;z-index:30;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom) + 76px);display:none;padding:8px;border:1px solid #49d9f5;border-radius:12px;background:#031321ed}
-#stageControls button{display:block;width:100%;margin:3px 0;padding:14px 8px;min-height:48px;position:relative;z-index:31;touch-action:manipulation}
+button:disabled{opacity:.35}#stop{position:fixed;z-index:2147483002;left:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);width:auto;background:#682532;display:none}
+#stageControls{position:fixed!important;z-index:2147483000!important;top:calc(env(safe-area-inset-top) + 8px);bottom:auto;left:10px;right:10px;display:none;padding:8px;border:1px solid #49d9f5;border-radius:12px;background:#031321ed}
+#stageControls button{display:block!important;width:100%;margin:3px 0;padding:14px 8px;min-height:52px;position:relative;z-index:2147483001;touch-action:manipulation;pointer-events:auto}
 .small{font-size:11px;color:#ffdf9c}
 </style>
 <script type="importmap">
@@ -56,7 +56,7 @@ $('startMind').onclick=async()=>{
   mindarRenderer=mindar.renderer;anchor=mindar.addAnchor(0);
   anchor.onTargetFound=()=>{markerSeen=true;$('stopMind').disabled=false;$('captureNow').disabled=false;report('MARCADOR DETECTADO! Toque no botão de captura na parte inferior.');};
   anchor.onTargetLost=()=>{markerSeen=false;$('captureNow').disabled=true;report('Marcador saiu da imagem. Reposicione a câmera até enquadrar o marcador inteiro.');};
-  await mindar.start();phase='mindar';$('panel').style.display='block';$('setup').style.display='none';$('stop').style.display='block';$('stageControls').style.display='block';$('stageControls').style.visibility='visible';
+  await mindar.start();phase='mindar';$('panel').style.display='block';$('setup').style.display='none';$('stop').style.display='block';$('stageControls').style.display='block';$('stageControls').style.visibility='visible';$('stageControls').style.zIndex='2147483000';
   mindarRenderer.setAnimationLoop(()=>{
    mindarFrames++;
    if(markerSeen){
