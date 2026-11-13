@@ -46,7 +46,7 @@ button:disabled{opacity:.4}
 <script type="module">
 import * as THREE from 'three';
 const $=id=>document.getElementById(id);
-let stream=null,session=null,renderer=null,frames=0,diag='',ending=false;
+let stream=null,session=null,renderer=null,xrBinding=null,frames=0,diag='',ending=false;
 function cameraInfo(){
  const v=$('cameraPreview'),t=stream?.getVideoTracks?.()[0],s=t?.getSettings?.()||{};
  const r=v.getBoundingClientRect();
@@ -95,6 +95,7 @@ $('toXR').onclick=async()=>{
   renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local');renderer.domElement.id='xrCanvas';document.body.appendChild(renderer.domElement);
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
   await renderer.xr.setSession(session);
+  try{if(typeof XRWebGLBinding==='function')xrBinding=new XRWebGLBinding(session,renderer.getContext());}catch(_){}
   const ref=await session.requestReferenceSpace('local');
   $('setup').style.display='none';$('panel').style.display='block';$('copy').style.display='block';$('stop').style.display='block';
   session.addEventListener('end',()=>{ending=true;cleanup();});
@@ -104,7 +105,7 @@ $('toXR').onclick=async()=>{
    if(pose?.views?.length){
     const view=pose.views[0],p=view.projectionMatrix,attrs=renderer.getContext().getContextAttributes();
     let viewport='indisponível';
-    try{const candidates=[session.renderState.baseLayer,renderer.xr.getBaseLayer?.()].filter(Boolean);const layer=candidates.find(x=>typeof x.getViewport==='function');if(layer){const vp=layer.getViewport(view);if(vp)viewport=vp.x+','+vp.y+' '+vp.width+'×'+vp.height;}else{viewport='getViewport indisponível; baseLayer='+(session.renderState.baseLayer?.constructor?.name||'null')+', rendererLayer='+(renderer.xr.getBaseLayer?.()?.constructor?.name||'null');}}catch(e){viewport='erro: '+e.message;}
+    try{const layer=renderer.xr.getBaseLayer?.()||session.renderState.baseLayer;if(layer&&typeof layer.getViewport==='function'){const vp=layer.getViewport(view);if(vp)viewport=vp.x+','+vp.y+' '+vp.width+'×'+vp.height;}else if(layer&&xrBinding&&typeof xrBinding.getViewSubImage==='function'){const sub=xrBinding.getViewSubImage(layer,view),vp=sub?.viewport;if(vp)viewport=vp.x+','+vp.y+' '+vp.width+'×'+vp.height+' (XRWebGLBinding)';else viewport='XRWebGLBinding sem viewport';}else{viewport='viewport indisponível; layer='+(layer?.constructor?.name||'null')+'; binding='+(xrBinding?'ativo':'indisponível');}}catch(e){viewport='erro: '+e.message;}
     const rect=renderer.domElement.getBoundingClientRect();
     diag=before+'\n\nWEBXR ATIVO\nFrames: '+frames+
      '\nBlend: '+(session.environmentBlendMode||'n/i')+' · Visibilidade: '+(session.visibilityState||'n/i')+
@@ -116,6 +117,10 @@ $('toXR').onclick=async()=>{
      '\nCanvas client: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · proporção XR view: '+(view?((2*Math.atan(1/p[5]))/(2*Math.atan(1/p[0]))).toFixed(3):'n/i')+
      '\nAlpha: '+(attrs?.alpha)+' · premultiplied: '+(attrs?.premultipliedAlpha)+
      '\nRecursos: '+Array.from(session.enabledFeatures||[]).join(', ')+
+     '\nXR layer: '+((renderer.xr.getBaseLayer?.()||session.renderState.baseLayer)?.constructor?.name||'indisponível')+
+     '\nXR layer texture: '+(()=>{const l=renderer.xr.getBaseLayer?.()||session.renderState.baseLayer;return l?(l.textureWidth+'×'+l.textureHeight):'indisponível'})()+
+     '\nXRWebGLBinding: '+(xrBinding?'disponível':'indisponível')+
+     '\nProjeção m0/m5: '+p[0].toFixed(5)+' / '+p[5].toFixed(5)+
      '\nDOM Overlay: xrOverlayRoot';
     $('panel').textContent=diag;
    }
