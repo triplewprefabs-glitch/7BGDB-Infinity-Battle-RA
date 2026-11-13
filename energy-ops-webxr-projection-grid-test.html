@@ -77,18 +77,15 @@ function buildScene(){
  cube.position.set(0,0,.025);cube.renderOrder=14;gridGroup.add(cube);
 
  let anchored=false;
- const dir=new THREE.Vector3(),pos=new THREE.Vector3(),quat=new THREE.Quaternion();
  renderer.setAnimationLoop(()=>{
   if(renderer.xr.isPresenting && !anchored){
-   const xrCam=renderer.xr.getCamera(camera);
-   xrCam.getWorldPosition(pos);
-   xrCam.getWorldQuaternion(quat);
-   dir.set(0,0,-1).applyQuaternion(quat).normalize();
-   gridGroup.position.copy(pos).addScaledVector(dir,1);
-   gridGroup.quaternion.copy(quat);
+   // Origem local do WebXR: fixa a grade no espaço uma única vez.
+   // Não copiar posição/orientação da câmera a cada frame.
+   gridGroup.position.set(0,0,-1);
+   gridGroup.quaternion.identity();
    gridGroup.updateMatrixWorld(true);
    anchored=true;
-   setStatus('GRADE FIXADA NO ESPAÇO — mova o celular para observar a paralaxe.');
+   setStatus('GRADE FIXA NA ORIGEM LOCAL — mova o celular para observar a paralaxe.');
   }
   renderer.render(scene,camera);
  });
