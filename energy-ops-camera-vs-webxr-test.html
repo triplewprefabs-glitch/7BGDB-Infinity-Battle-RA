@@ -104,14 +104,14 @@ $('toXR').onclick=async()=>{
    if(pose?.views?.length){
     const view=pose.views[0],p=view.projectionMatrix,attrs=renderer.getContext().getContextAttributes();
     let viewport='indisponível';
-    try{const layer=renderer.xr.getBaseLayer?.()||session.renderState.baseLayer;if(layer){const vp=layer.getViewport(view);if(vp)viewport=vp.x+','+vp.y+' '+vp.width+'×'+vp.height;}}catch(e){viewport='erro: '+e.message;}
+    try{const candidates=[session.renderState.baseLayer,renderer.xr.getBaseLayer?.()].filter(Boolean);const layer=candidates.find(x=>typeof x.getViewport==='function');if(layer){const vp=layer.getViewport(view);if(vp)viewport=vp.x+','+vp.y+' '+vp.width+'×'+vp.height;}else{viewport='getViewport indisponível; baseLayer='+(session.renderState.baseLayer?.constructor?.name||'null')+', rendererLayer='+(renderer.xr.getBaseLayer?.()?.constructor?.name||'null');}}catch(e){viewport='erro: '+e.message;}
     const rect=renderer.domElement.getBoundingClientRect();
     diag=before+'\n\nWEBXR ATIVO\nFrames: '+frames+
      '\nBlend: '+(session.environmentBlendMode||'n/i')+' · Visibilidade: '+(session.visibilityState||'n/i')+
      '\nViews: '+pose.views.length+' · FOV V/H: '+(2*Math.atan(1/p[5])*180/Math.PI).toFixed(1)+'° / '+(2*Math.atan(1/p[0])*180/Math.PI).toFixed(1)+'°'+
      '\nViewport XR: '+viewport+
      '\nCanvas CSS: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · interno: '+renderer.domElement.width+'×'+renderer.domElement.height+
-     '\nJanela: '+innerWidth+'×'+innerHeight+' · DPR real: '+devicePixelRatio+' · DPR renderer: '+renderer.getPixelRatio()+
+     '\nJanela: '+innerWidth+'×'+innerHeight+' · visualViewport: '+(visualViewport?Math.round(visualViewport.width)+'×'+Math.round(visualViewport.height)+' escala '+visualViewport.scale:'indisponível')+' · screen: '+screen.width+'×'+screen.height+\n     ' · DPR real: '+devicePixelRatio+' · DPR renderer: '+renderer.getPixelRatio()+\n     '\nCanvas client: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · proporção XR view: '+(view?((2*Math.atan(1/p[5]))/(2*Math.atan(1/p[0]))).toFixed(3):'n/i')+
      '\nAlpha: '+(attrs?.alpha)+' · premultiplied: '+(attrs?.premultipliedAlpha)+
      '\nRecursos: '+Array.from(session.enabledFeatures||[]).join(', ')+
      '\nDOM Overlay: xrOverlayRoot';
