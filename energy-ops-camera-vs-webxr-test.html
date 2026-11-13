@@ -73,11 +73,13 @@ function cleanup(){
  $('camera').disabled=false;$('toXR').disabled=true;
 }
 $('camera').onclick=async()=>{
- $('camera').disabled=true;$('message').textContent='Solicitando câmera normal…';
+ $('camera').disabled=true;$('message').textContent='Ativando tela cheia e solicitando câmera…';
+ let fullscreenResult='não solicitado';
+ try{if(document.documentElement.requestFullscreen){await document.documentElement.requestFullscreen();fullscreenResult='ativo';}else{fullscreenResult='API indisponível';}}catch(e){fullscreenResult='não permitido: '+e.message;}
  try{
   stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'}}});
   const v=$('cameraPreview');v.srcObject=stream;v.style.display='block';await v.play();
-  diag=cameraInfo();$('panel').textContent=diag;$('panel').style.display='block';$('copy').style.display='block';
+  diag=cameraInfo()+'\nTela cheia: '+fullscreenResult+' · document.fullscreenElement: '+(document.fullscreenElement?'sim':'não')+'\nAltura após tela cheia: innerHeight='+innerHeight+' · visualViewport='+(visualViewport?Math.round(visualViewport.height):'n/i');$('panel').textContent=diag;$('panel').style.display='block';$('copy').style.display='block';
   $('setup').style.display='flex';$('setup').classList.add('camera-active');$('toXR').disabled=false;
   $('message').textContent='Câmera normal ativa. Não mova o aparelho; compare o mesmo objeto nas duas etapas.';
  }catch(e){$('message').textContent='FALHA CÂMERA: '+(e.message||String(e));$('camera').disabled=false;}
