@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06111e">
+<title>ENERGY OPS · Teste WebXR Direto</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020811;color:#eafaff;font-family:system-ui,Arial,sans-serif}
+html.xr-session-active,body.xr-session-active{background:transparent!important}
+body.xr-session-active #xrCanvas{position:fixed!important;inset:0;width:100%!important;height:100%!important;background:transparent!important;z-index:1}
+#setup{position:fixed;z-index:20;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:#020914ed}
+.card{width:min(460px,100%);padding:20px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
+h1{margin:0 0 10px;color:#72e7ff;font-size:21px}
+p{font-size:14px;line-height:1.5;color:#c5dce7}
+button{width:100%;padding:14px;margin:6px 0;border:1px solid #52d8f2;border-radius:9px;background:#087da2;color:white;font-size:15px;font-weight:800}
+button:disabled{opacity:.4}
+#panel{position:fixed;z-index:40;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 62px);max-height:28dvh;overflow:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:12px;line-height:1.45;white-space:pre-wrap;display:none;pointer-events:none}
+#stop{position:fixed;z-index:2147483002;left:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);width:auto;display:none;background:#682532}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+<div id="setup"><div class="card">
+<h1>ENERGY OPS · WEBXR DIRETO</h1>
+<p>Teste isolado: inicia WebXR diretamente, sem abrir MindAR. Usa a mesma solicitação de sessão e configuração gráfica do modo Treino. Nenhum modo do jogo principal será alterado.</p>
+<button id="start">INICIAR WEBXR DIRETO</button>
+<p id="message">Use em HTTPS, no mesmo celular e navegador dos testes anteriores.</p>
+</div></div>
+<div id="panel">Aguardando WebXR…</div>
+<button id="stop">ENCERRAR TESTE</button>
+<script type="module">
+import * as THREE from 'three';
+const $=id=>document.getElementById(id);
+let session=null,renderer=null,frames=0,ended=false;
+function cleanup(){
+ if(renderer){renderer.setAnimationLoop(null);renderer.dispose();renderer.domElement.remove();renderer=null;}
+ document.documentElement.classList.remove('xr-session-active');
+ document.body.classList.remove('xr-session-active');
+ $('panel').style.display='none';$('stop').style.display='none';$('setup').style.display='flex';
+ $('start').disabled=false;
+}
+$('start').addEventListener('click',async()=>{
+ $('start').disabled=true;$('message').textContent='Solicitando immersive-ar…';
+ try{
+  if(!navigator.xr)throw new Error('navigator.xr indisponível neste navegador.');
+  if(!await navigator.xr.isSessionSupported('immersive-ar'))throw new Error('immersive-ar não é suportado neste aparelho/navegador.');
+  session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test','dom-overlay'],domOverlay:{root:document.body}});
+  document.documentElement.classList.add('xr-session-active');document.body.classList.add('xr-session-active');
+  renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setClearColor(0x000000,0);
+  renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local');
+  renderer.domElement.id='xrCanvas';document.body.appendChild(renderer.domElement);
+  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
+  await renderer.xr.setSession(session);
+  const refSpace=await session.requestReferenceSpace('local');
+  $('setup').style.display='none';$('panel').style.display='block';$('stop').style.display='block';
+  $('panel').textContent='WEBXR DIRETO ATIVO\nAguardando primeiro frame…';
+  session.addEventListener('end',()=>{ended=true;cleanup();});
+  renderer.setAnimationLoop((time,frame)=>{
+   if(!frame)return;frames++;
+   const pose=frame.getViewerPose(refSpace);
+   if(pose&&pose.views&&pose.views.length){
+    const proj=pose.views[0].projectionMatrix;
+    const fovV=(2*Math.atan(1/proj[5])*180/Math.PI).toFixed(1);
+    const fovH=(2*Math.atan(1/proj[0])*180/Math.PI).toFixed(1);
+    const attrs=renderer.getContext().getContextAttributes();
+    $('panel').textContent='WEBXR DIRETO ATIVO\nFrames: '+frames+'\nBlend: '+(session.environmentBlendMode||'n/i')+' · Visibilidade: '+(session.visibilityState||'n/i')+'\nViews: '+pose.views.length+' · FOV V/H: '+fovV+'° / '+fovH+'°\nCanvas: '+innerWidth+'×'+innerHeight+' · DPR: '+renderer.getPixelRatio()+'\nAlpha: '+(attrs?attrs.alpha:'n/i')+' · premultiplied: '+(attrs?attrs.premultipliedAlpha:'n/i')+'\nRecursos ativos: '+Array.from(session.enabledFeatures||[]).join(', ');
+   }
+   renderer.render(scene,camera);
+  });
+ }catch(e){
+  $('message').textContent='FALHA WEBXR: '+(e&&e.message?e.message:String(e));
+  $('start').disabled=false;
+  if(session&&!ended){try{await session.end();}catch(_){}}
+  cleanup();
+  $('message').textContent='FALHA WEBXR: '+(e&&e.message?e.message:String(e));
+ }
+});
+$('stop').addEventListener('click',async()=>{if(session){try{await session.end();}catch(e){cleanup();}}else cleanup();});
+window.addEventListener('resize',()=>{if(renderer){renderer.setSize(innerWidth,innerHeight);}});
+</script>
+</body>
+</html>
