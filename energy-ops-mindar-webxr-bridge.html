@@ -147,18 +147,34 @@ $('startXR').onclick=async()=>{
    }
    xrRenderer.render(scene,camera);
   });
-  xrSession.addEventListener('end',()=>{xrRenderer?.setAnimationLoop(null);xrRenderer?.dispose();xrRenderer?.domElement.remove();document.documentElement.classList.remove('xr-session-active');document.body.classList.remove('xr-session-active');phase='ended';report('Sessão WebXR encerrada.');$('startXR').disabled=false;});
+  function cleanupXRSession(){
+ try{xrRenderer?.setAnimationLoop(null);}catch(_){}
+ try{xrRenderer?.dispose();}catch(_){}
+ try{xrRenderer?.domElement.remove();}catch(_){}
+ document.documentElement.classList.remove('xr-session-active');document.body.classList.remove('xr-session-active');
+ xrRenderer=null;phase='ended';
+}
+xrSession.addEventListener('end',()=>{cleanupXRSession();report('Sessão WebXR encerrada.');$('startXR').disabled=false;$('startXRNow').disabled=false;});
   report('Sessão WebXR aberta. Aguardando os primeiros quadros e a pose da câmera…');
  }catch(e){report('FALHA NA TRANSIÇÃO WEBXR: '+(e.message||String(e))+'\nMindAR já foi encerrado. A falha será registrada sem alterar o jogo principal.');$('startXR').disabled=false;$('startXRNow').disabled=false;}
 };
 // Os controles visíveis sobre a câmera encaminham os toques aos handlers principais.
 $('captureNow').addEventListener('click',()=>{if(!$('captureNow').disabled)$('stopMind').click();});
 $('startXRNow').addEventListener('click',()=>{if(!$('startXRNow').disabled)$('startXR').click();});
-$('stop').onclick=async()=>{
- try{if(mindarRenderer)mindarRenderer.setAnimationLoop(null);if(mindar)await mindar.stop();}catch(e){}
- try{if(xrRenderer)xrRenderer.setAnimationLoop(null);if(xrSession&&xrSession.visibilityState!=='ended')await xrSession.end();}catch(e){}
- phase='ended';$('stop').style.display='none';$('stageControls').style.display='none';$('setup').style.display='flex';$('mindarRoot').style.display='block';$('xrRoot').style.display='none';
- $('startMind').disabled=false;$('stopMind').disabled=true;$('startXR').disabled=true;report('Teste encerrado. Recarregue a página para iniciar uma nova rodada.');
+$('stop').onclick=()=>{
+ // Never wait for XRSession.end(): on some Android/ARCore builds its promise can stall.
+ $('stop').disabled=true;
+ if(phase==='mindar'){
+  try{mindarRenderer?.setAnimationLoop(null);}catch(_){}
+  try{Promise.resolve(mindar?.stop()).catch(()=>{});}catch(_){}
+ }
+ if(xrSession&&xrSession.visibilityState!=='ended'){
+  try{const ending=xrSession.end();if(ending&&typeof ending.catch==='function')ending.catch(()=>{});}catch(_){}
+ }
+ cleanupXRSession();
+ $('stop').style.display='none';$('stageControls').style.display='none';$('setup').style.display='flex';$('mindarRoot').style.display='block';$('xrRoot').style.display='none';
+ $('startMind').disabled=false;$('stopMind').disabled=true;$('startXR').disabled=true;$('startXRNow').disabled=true;
+ report('Teste encerrado. A sessão WebXR foi solicitada para fechar sem bloquear a interface. Recarregue a página para uma nova rodada.');
 };
 window.addEventListener('error',e=>report('ERRO JAVASCRIPT: '+(e.message||'falha')));
 window.addEventListener('unhandledrejection',e=>report('ERRO ASSÍNCRONO: '+(e.reason?.message||String(e.reason))));
