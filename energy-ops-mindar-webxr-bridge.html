@@ -72,7 +72,7 @@ async function forceReleaseMindARCamera(){
  try{mindarRenderer?.dispose();}catch(_){}
  root.replaceChildren();
  // Give Chrome/ARCore a short interval to release the camera before WebXR requests it.
- await new Promise(resolve=>setTimeout(resolve,350));
+ await new Promise(resolve=>setTimeout(resolve,1500));
  return stoppedTracks;
 }
 function matrixText(m){const e=m.elements;return 'posição ['+e[12].toFixed(3)+', '+e[13].toFixed(3)+', '+e[14].toFixed(3)+']';}
@@ -116,7 +116,7 @@ $('startXR').onclick=async()=>{
   if(!navigator.xr)throw new Error('navigator.xr não está disponível neste navegador.');
   const supported=await navigator.xr.isSessionSupported('immersive-ar');
   if(!supported)throw new Error('Este navegador/aparelho não oferece immersive-ar.');
-  xrSession=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test','dom-overlay'],domOverlay:{root:$('xrOverlayRoot')}});
+  xrSession=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test','dom-overlay'],domOverlay:{root:document.body}});
   document.documentElement.classList.add('xr-session-active');document.body.classList.add('xr-session-active');
   $('xrRoot').style.display='none';
   xrRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
