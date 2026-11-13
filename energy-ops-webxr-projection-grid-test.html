@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ENERGY OPS — Teste de escala WebXR</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,sans-serif}
+#xrOverlayRoot{position:fixed;inset:0;pointer-events:none;color:#fff}
+#panel{position:absolute;left:10px;right:10px;top:10px;padding:12px;border-radius:12px;background:rgba(0,0,0,.78);font-size:14px;line-height:1.35;pointer-events:auto}
+h1{font-size:16px;margin:0 0 7px}
+p{margin:5px 0}
+button{border:0;border-radius:9px;padding:11px 14px;margin:6px 6px 0 0;font-weight:bold;font-size:14px}
+#start{background:#f4c542;color:#111}#stop{background:#ddd;color:#111}
+#status{font-weight:bold;color:#ffe27a}
+#hint{font-size:12px;opacity:.9}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+<div id="xrOverlayRoot">
+ <div id="panel">
+  <h1>ENERGY OPS — TESTE DE ESCALA WEBXR</h1>
+  <p>Grade virtual: <b>50 × 50 cm</b> · quadrado central: <b>10 × 10 cm</b> · distância: <b>1 metro à frente</b>.</p>
+  <p id="status">Aguardando início do WebXR.</p>
+  <p id="hint">Toque em INICIAR e observe se a grade parece ter escala coerente. Se possível, compare o quadrado central com um quadrado físico de 10 cm segurado aproximadamente a 1 m do celular.</p>
+  <button id="start">INICIAR TESTE WEBXR</button><button id="stop">ENCERRAR</button>
+ </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+
+const statusEl=document.getElementById('status');
+const startBtn=document.getElementById('start');
+const stopBtn=document.getElementById('stop');
+const root=document.getElementById('xrOverlayRoot');
+let renderer,scene,camera,gridGroup,session=null;
+
+function setStatus(t){statusEl.textContent=t;}
+function buildScene(){
+ scene=new THREE.Scene();
+ camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,.01,20);
+ renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
+ renderer.setPixelRatio(1);
+ renderer.setSize(window.innerWidth,window.innerHeight,false);
+ renderer.setClearColor(0x000000,0);
+ renderer.xr.enabled=true;
+ renderer.xr.setReferenceSpaceType('viewer');
+ document.body.appendChild(renderer.domElement);
+ gridGroup=new THREE.Group();
+ gridGroup.position.set(0,0,-1);
+ scene.add(gridGroup);
+
+ const half=.25, step=.05, positions=[];
+ for(let i=0;i<=10;i++){
+  const v=-half+i*step;
+  positions.push(-half,v,0, half,v,0);
+  positions.push(v,-half,0, v,half,0);
+ }
+ const geo=new THREE.BufferGeometry();
+ geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ const lines=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x40e8ff}));
+ gridGroup.add(lines);
+
+ const borderPts=[[-half,-half,0],[half,-half,0],[half,half,0],[-half,half,0],[-half,-half,0]];
+ const borderGeo=new THREE.BufferGeometry().setFromPoints(borderPts.map(p=>new THREE.Vector3(...p)));
+ gridGroup.add(new THREE.Line(borderGeo,new THREE.LineBasicMaterial({color:0xffffff})));
+
+ const s=.05;
+ const sqPts=[[-s,-s,.002],[s,-s,.002],[s,s,.002],[-s,s,.002],[-s,-s,.002]];
+ const sqGeo=new THREE.BufferGeometry().setFromPoints(sqPts.map(p=>new THREE.Vector3(...p)));
+ gridGroup.add(new THREE.Line(sqGeo,new THREE.LineBasicMaterial({color:0xffdf45,linewidth:3})));
+
+ const axes=new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(-.08,0,.003),new THREE.Vector3(.08,0,.003),
+  new THREE.Vector3(0,-.08,.003),new THREE.Vector3(0,.08,.003)
+ ]);
+ gridGroup.add(new THREE.LineSegments(axes,new THREE.LineBasicMaterial({color:0xff7043})));
+
+ const cube=new THREE.Mesh(new THREE.BoxGeometry(.04,.04,.04),new THREE.MeshBasicMaterial({color:0xffdf45,wireframe:true}));
+ cube.position.set(0,0,.025);
+ gridGroup.add(cube);
+
+ renderer.setAnimationLoop(()=>renderer.render(scene,camera));
+}
+async function start(){
+ if(!navigator.xr){setStatus('Este navegador não disponibilizou WebXR.');return;}
+ startBtn.disabled=true;
+ try{
+  if(!renderer)buildScene();
+  session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['dom-overlay'],domOverlay:{root}});
+  await renderer.xr.setSession(session);
+  setStatus('WEBXR ATIVO — grade posicionada a 1 m à frente do observador.');
+  session.addEventListener('end',()=>{
+   session=null;startBtn.disabled=false;setStatus('Teste encerrado.');
+  },{once:true});
+ }catch(e){
+  startBtn.disabled=false;
+  setStatus('Falha ao iniciar: '+(e?.message||e));
+ }
+}
+async function stop(){
+ try{
+  const s=renderer?.xr?.getSession();
+  if(s) await s.end();
+  else if(session) await session.end();
+  else setStatus('Nenhuma sessão ativa.');
+ }catch(e){setStatus('Encerramento solicitado. '+(e?.message||''));}
+}
+startBtn.addEventListener('click',start);
+stopBtn.addEventListener('click',stop);
+</script>
+</body>
+</html>
