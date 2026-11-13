@@ -12,9 +12,9 @@
 html.xr-session-active,body.xr-session-active{background:transparent!important}
 #xrOverlayRoot{display:contents}
 #xrOverlayRoot:xr-overlay{display:block!important;background:rgba(0,0,0,0)!important;position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;box-sizing:border-box!important;transform:none!important;contain:none!important;z-index:2147483646!important;overflow:visible!important;pointer-events:none!important}
-body.xr-session-active #panel{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body.xr-session-active #panel{-webkit-text-size-adjust:100%;text-size-adjust:100%;pointer-events:auto;touch-action:pan-y}\n#copyDiag{position:fixed;z-index:2147483647;right:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);width:auto;max-width:58%;padding:11px 13px;background:#075b78;pointer-events:auto;touch-action:manipulation;display:none}
 body.xr-session-active #xrCanvas{background:transparent!important;pointer-events:none;z-index:1}
-#panel{position:fixed;z-index:40;top:auto;bottom:calc(env(safe-area-inset-bottom) + 62px);left:8px;right:8px;max-height:18dvh;overflow:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:12px;line-height:1.45;white-space:pre-wrap}
+#panel{position:fixed;z-index:2147483645;top:auto;bottom:calc(env(safe-area-inset-bottom) + 112px);left:8px;right:8px;height:38dvh;max-height:38dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;pointer-events:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:12px;line-height:1.45;white-space:pre-wrap}
 #setup{position:fixed;z-index:10;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#020914ed}
 .card{width:min(460px,100%);max-height:94dvh;overflow:auto;padding:18px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
 h1{margin:0 0 8px;color:#72e7ff;font-size:20px}p{font-size:13px;line-height:1.45;color:#c5dce7}
@@ -33,7 +33,7 @@ button:disabled{opacity:.35}#stop{position:fixed;z-index:2147483002;left:10px;bo
 <div id="xrOverlayRoot">
  <div id="panel" style="display:none">Aguardando início…</div>
  <div id="stageControls"><button id="captureNow" disabled>2 · CAPTURAR E ENCERRAR MINDAR</button><button id="startXRNow" disabled>3 · INICIAR WEBXR</button></div>
- <button id="stop">ENCERRAR TESTE</button>
+ <button id="copyDiag">COPIAR DIAGNÓSTICO</button>\n <button id="stop">ENCERRAR TESTE</button>
 </div>
 <div id="setup"><div class="card">
 <h1>ENERGY OPS · PONTE MINDAR → WEBXR</h1>
@@ -84,7 +84,7 @@ $('startMind').onclick=async()=>{
   mindarRenderer=mindar.renderer;anchor=mindar.addAnchor(0);
   anchor.onTargetFound=()=>{markerSeen=true;$('stopMind').disabled=false;$('captureNow').disabled=false;report('MARCADOR DETECTADO! Toque no botão de captura na parte inferior.');};
   anchor.onTargetLost=()=>{markerSeen=false;$('captureNow').disabled=true;report('Marcador saiu da imagem. Reposicione a câmera até enquadrar o marcador inteiro.');};
-  await mindar.start();phase='mindar';$('panel').style.display='block';$('setup').style.display='none';$('stop').style.display='block';$('stageControls').style.display='block';$('stageControls').style.visibility='visible';$('stageControls').style.zIndex='2147483000';
+  await mindar.start();phase='mindar';$('panel').style.display='block';$('setup').style.display='none';$('stop').style.display='block';$('copyDiag').style.display='block';$('stageControls').style.display='block';$('stageControls').style.visibility='visible';$('stageControls').style.zIndex='2147483000';
   mindarRenderer.setAnimationLoop(()=>{
    mindarFrames++;
    if(markerSeen){
@@ -161,6 +161,17 @@ xrSession.addEventListener('end',()=>{cleanupXRSession();report('Sessão WebXR e
 // Os controles visíveis sobre a câmera encaminham os toques aos handlers principais.
 $('captureNow').addEventListener('click',()=>{if(!$('captureNow').disabled)$('stopMind').click();});
 $('startXRNow').addEventListener('click',()=>{if(!$('startXRNow').disabled)$('startXR').click();});
+$('copyDiag').onclick=async()=>{
+ const diagnostic=$('panel').textContent;
+ try{
+  if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(diagnostic);}
+  else{
+   const field=document.createElement('textarea');field.value=diagnostic;field.style.position='fixed';field.style.opacity='0';document.body.appendChild(field);field.select();
+   if(!document.execCommand('copy'))throw new Error('cópia automática indisponível');field.remove();
+  }
+  $('copyDiag').textContent='DIAGNÓSTICO COPIADO';
+ }catch(e){$('copyDiag').textContent='NÃO FOI POSSÍVEL COPIAR';}
+};
 $('stop').onclick=()=>{
  // Never wait for XRSession.end(): on some Android/ARCore builds its promise can stall.
  $('stop').disabled=true;
@@ -172,7 +183,7 @@ $('stop').onclick=()=>{
   try{const ending=xrSession.end();if(ending&&typeof ending.catch==='function')ending.catch(()=>{});}catch(_){}
  }
  cleanupXRSession();
- $('stop').style.display='none';$('stageControls').style.display='none';$('setup').style.display='flex';$('mindarRoot').style.display='block';$('xrRoot').style.display='none';
+ $('stop').style.display='none';$('copyDiag').style.display='none';$('stageControls').style.display='none';$('setup').style.display='flex';$('mindarRoot').style.display='block';$('xrRoot').style.display='none';
  $('startMind').disabled=false;$('stopMind').disabled=true;$('startXR').disabled=true;$('startXRNow').disabled=true;
  report('Teste encerrado. A sessão WebXR foi solicitada para fechar sem bloquear a interface. Recarregue a página para uma nova rodada.');
 };
