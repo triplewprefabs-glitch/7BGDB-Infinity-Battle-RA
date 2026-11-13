@@ -65,12 +65,8 @@ $('startMind').onclick=async()=>{
    }
    mindarRenderer.render(mindar.scene,mindar.camera);
   });
-  report('MINDAR ATIVO
-Estado: PROCURANDO MARCADOR
-Aponte para o marcador inteiro, sem cortar as bordas. Afaste a câmera cerca de 30–60 cm e evite reflexos.');
-  setInterval(()=>{if(phase==='mindar'&&!markerSeen){panel.textContent='MINDAR ATIVO · PROCURANDO MARCADOR\
-Quadros processados: '+mindarFrames+'\
-Mantenha o marcador inteiro visível, bem iluminado e relativamente plano.';}},500);
+  report('MINDAR ATIVO\nEstado: PROCURANDO MARCADOR\nAponte para o marcador inteiro, sem cortar as bordas. Afaste a câmera cerca de 30–60 cm e evite reflexos.');
+  setInterval(()=>{if(phase==='mindar'&&!markerSeen){panel.textContent='MINDAR ATIVO · PROCURANDO MARCADOR\\nQuadros processados: '+mindarFrames+'\\nMantenha o marcador inteiro visível, bem iluminado e relativamente plano.';}},500);
  }catch(e){console.error(e);report('FALHA MINDAR: '+(e.message||String(e))+'
 Verifique internet, permissão da câmera e se a página foi aberta em HTTPS.');$('startMind').disabled=false;$('startMind').textContent='TENTAR NOVAMENTE';}
 };
@@ -79,9 +75,7 @@ $('stopMind').onclick=async()=>{
  const snapshot=markerCameraMatrix.clone();
  try{if(mindarRenderer)mindarRenderer.setAnimationLoop(null);if(mindar)await mindar.stop();}catch(e){report('Erro ao encerrar MindAR: '+(e.message||String(e)));return;}
  markerCameraMatrix=snapshot;phase='handoff';$('mindarRoot').style.display='none';$('stopMind').disabled=true;$('captureNow').disabled=true;$('startXR').disabled=false;$('startXRNow').disabled=false;
- report('CAPTURA MINDAR SALVA
-'+matrixText(snapshot)+'
-MindAR encerrado. Agora toque em “3 · INICIAR WEBXR” para abrir a nova sessão de câmera.');
+ report('CAPTURA MINDAR SALVA\n'+matrixText(snapshot)+'\nMindAR encerrado. Agora toque em “3 · INICIAR WEBXR” para abrir a nova sessão de câmera.');
 };
 $('startXR').onclick=async()=>{
  $('startXR').disabled=true;$('startXRNow').disabled=true;report('Solicitando sessão WebXR immersive-ar…');
@@ -113,14 +107,9 @@ $('startXR').onclick=async()=>{
     }
     const cameraInMarker=xrMarkerMatrix.clone().invert().multiply(viewerMatrix);
     const p=new THREE.Vector3().setFromMatrixPosition(cameraInMarker);
-    panel.textContent='WEBXR ATIVO · HANDOFF EXECUTADO
-Frames WebXR: '+xrFrames+'
-Câmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'
-Origem de marcador calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'
-Mantenha o aparelho imóvel por alguns segundos e observe se as coordenadas estabilizam.';
+    panel.textContent='WEBXR ATIVO · HANDOFF EXECUTADO\nFrames WebXR: '+xrFrames+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem de marcador calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nMantenha o aparelho imóvel por alguns segundos e observe se as coordenadas estabilizam.';
    }else{
-    panel.textContent='Sessão WebXR aberta, aguardando viewer pose…
-Frames: '+xrFrames;
+    panel.textContent='Sessão WebXR aberta, aguardando viewer pose…\nFrames: '+xrFrames;
    }
    xrRenderer.render(scene,camera);
   });
