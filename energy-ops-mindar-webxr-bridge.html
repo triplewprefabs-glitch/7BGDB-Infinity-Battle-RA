@@ -67,8 +67,7 @@ $('startMind').onclick=async()=>{
   });
   report('MINDAR ATIVO\nEstado: PROCURANDO MARCADOR\nAponte para o marcador inteiro, sem cortar as bordas. Afaste a câmera cerca de 30–60 cm e evite reflexos.');
   setInterval(()=>{if(phase==='mindar'&&!markerSeen){panel.textContent='MINDAR ATIVO · PROCURANDO MARCADOR\\nQuadros processados: '+mindarFrames+'\\nMantenha o marcador inteiro visível, bem iluminado e relativamente plano.';}},500);
- }catch(e){console.error(e);report('FALHA MINDAR: '+(e.message||String(e))+'
-Verifique internet, permissão da câmera e se a página foi aberta em HTTPS.');$('startMind').disabled=false;$('startMind').textContent='TENTAR NOVAMENTE';}
+ }catch(e){console.error(e);report('FALHA MINDAR: '+(e.message||String(e))+'\nVerifique internet, permissão da câmera e se a página foi aberta em HTTPS.');$('startMind').disabled=false;$('startMind').textContent='TENTAR NOVAMENTE';}
 };
 $('stopMind').onclick=async()=>{
  if(!markerCameraMatrix){report('Ainda não foi possível capturar a pose do marcador. Mantenha-o visível e tente novamente.');return;}
@@ -115,8 +114,7 @@ $('startXR').onclick=async()=>{
   });
   xrSession.addEventListener('end',()=>{phase='ended';report('Sessão WebXR encerrada.');$('startXR').disabled=false;});
   report('Sessão WebXR aberta. Aguardando os primeiros quadros e a pose da câmera…');
- }catch(e){report('FALHA NA TRANSIÇÃO WEBXR: '+(e.message||String(e))+'
-MindAR já foi encerrado. A falha será registrada sem alterar o jogo principal.');$('startXR').disabled=false;$('startXRNow').disabled=false;}
+ }catch(e){report('FALHA NA TRANSIÇÃO WEBXR: '+(e.message||String(e))+'\nMindAR já foi encerrado. A falha será registrada sem alterar o jogo principal.');$('startXR').disabled=false;$('startXRNow').disabled=false;}
 };
 $('stop').onclick=async()=>{
  try{if(mindarRenderer)mindarRenderer.setAnimationLoop(null);if(mindar)await mindar.stop();}catch(e){}
