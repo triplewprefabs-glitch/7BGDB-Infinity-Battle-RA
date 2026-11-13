@@ -116,6 +116,9 @@ $('startXR').onclick=async()=>{
   report('Sessão WebXR aberta. Aguardando os primeiros quadros e a pose da câmera…');
  }catch(e){report('FALHA NA TRANSIÇÃO WEBXR: '+(e.message||String(e))+'\nMindAR já foi encerrado. A falha será registrada sem alterar o jogo principal.');$('startXR').disabled=false;$('startXRNow').disabled=false;}
 };
+// Os controles visíveis sobre a câmera encaminham os toques aos handlers principais.
+$('captureNow').addEventListener('click',()=>{if(!$('captureNow').disabled)$('stopMind').click();});
+$('startXRNow').addEventListener('click',()=>{if(!$('startXRNow').disabled)$('startXR').click();});
 $('stop').onclick=async()=>{
  try{if(mindarRenderer)mindarRenderer.setAnimationLoop(null);if(mindar)await mindar.stop();}catch(e){}
  try{if(xrRenderer)xrRenderer.setAnimationLoop(null);if(xrSession&&xrSession.visibilityState!=='ended')await xrSession.end();}catch(e){}
