@@ -111,7 +111,9 @@ $('toXR').onclick=async()=>{
      '\nViews: '+pose.views.length+' · FOV V/H: '+(2*Math.atan(1/p[5])*180/Math.PI).toFixed(1)+'° / '+(2*Math.atan(1/p[0])*180/Math.PI).toFixed(1)+'°'+
      '\nViewport XR: '+viewport+
      '\nCanvas CSS: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · interno: '+renderer.domElement.width+'×'+renderer.domElement.height+
-     '\nJanela: '+innerWidth+'×'+innerHeight+' · visualViewport: '+(visualViewport?Math.round(visualViewport.width)+'×'+Math.round(visualViewport.height)+' escala '+visualViewport.scale:'indisponível')+' · screen: '+screen.width+'×'+screen.height+\n     ' · DPR real: '+devicePixelRatio+' · DPR renderer: '+renderer.getPixelRatio()+\n     '\nCanvas client: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · proporção XR view: '+(view?((2*Math.atan(1/p[5]))/(2*Math.atan(1/p[0]))).toFixed(3):'n/i')+
+     '\nJanela: '+innerWidth+'×'+innerHeight+' · visualViewport: '+(visualViewport?Math.round(visualViewport.width)+'×'+Math.round(visualViewport.height)+' escala '+visualViewport.scale:'indisponível')+' · screen: '+screen.width+'×'+screen.height+
+     '\nDPR real: '+devicePixelRatio+' · DPR renderer: '+renderer.getPixelRatio()+
+     '\nCanvas client: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · proporção XR view: '+(view?((2*Math.atan(1/p[5]))/(2*Math.atan(1/p[0]))).toFixed(3):'n/i')+
      '\nAlpha: '+(attrs?.alpha)+' · premultiplied: '+(attrs?.premultipliedAlpha)+
      '\nRecursos: '+Array.from(session.enabledFeatures||[]).join(', ')+
      '\nDOM Overlay: xrOverlayRoot';
