@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06111e">
+<title>ENERGY OPS · Câmera normal × WebXR</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020811;color:#eafaff;font-family:system-ui,Arial,sans-serif}
+#cameraPreview{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000}
+html.xr-session-active,body.xr-session-active{background:transparent!important}
+#xrOverlayRoot{display:contents}
+#xrOverlayRoot:xr-overlay{display:block!important;background:rgba(0,0,0,0)!important;position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;box-sizing:border-box!important;transform:none!important;contain:none!important;z-index:2147483646!important;overflow:visible!important;pointer-events:none!important}
+#xrCanvas{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;background:transparent!important;z-index:1!important;pointer-events:none}
+#setup{position:fixed;z-index:20;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#020914ed}
+.card{width:min(480px,100%);max-height:94dvh;overflow:auto;padding:18px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
+h1{margin:0 0 8px;color:#72e7ff;font-size:20px}
+p{font-size:13px;line-height:1.45;color:#c5dce7}
+button{width:100%;padding:13px;margin:5px 0;border:1px solid #52d8f2;border-radius:9px;background:#087da2;color:white;font-size:14px;font-weight:800}
+button:disabled{opacity:.4}
+#panel{position:fixed;z-index:2147483645;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 62px);max-height:34dvh;overflow:auto;padding:10px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:11px;line-height:1.4;white-space:pre-wrap;display:none;pointer-events:auto;touch-action:pan-y}
+#stop{position:fixed;z-index:2147483647;left:8px;bottom:calc(env(safe-area-inset-bottom) + 8px);width:auto;display:none;background:#682532;pointer-events:auto}
+#copy{position:fixed;z-index:2147483647;right:8px;bottom:calc(env(safe-area-inset-bottom) + 8px);width:auto;display:none;background:#075b78;pointer-events:auto}
+#xrOverlayRoot button{pointer-events:auto}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+<video id="cameraPreview" autoplay muted playsinline></video>
+<div id="setup"><div class="card">
+<h1>ENERGY OPS · CÂMERA × WEBXR</h1>
+<p>Teste comparativo no mesmo celular: primeiro mostra a câmera normal do navegador; depois encerra essa câmera e inicia o passthrough do WebXR. Não usa MindAR, marcador ou objetos 3D.</p>
+<p><b>Importante:</b> mantenha o aparelho na mesma posição e apontado para o mesmo objeto durante as duas etapas. Compare as bordas e o tamanho aparente do objeto.</p>
+<button id="camera">1 · ABRIR CÂMERA NORMAL</button>
+<button id="toXR" disabled>2 · ENCERRAR CÂMERA E INICIAR WEBXR</button>
+<p id="message">Use Chrome Android em HTTPS e permita o acesso à câmera.</p>
+</div></div>
+<div id="xrOverlayRoot">
+ <div id="panel">Diagnóstico aguardando…</div>
+ <button id="copy">COPIAR DIAGNÓSTICO</button>
+ <button id="stop">ENCERRAR TESTE</button>
+</div>
+<script type="module">
+import * as THREE from 'three';
+const $=id=>document.getElementById(id);
+let stream=null,session=null,renderer=null,frames=0,diag='',ending=false;
+function cameraInfo(){
+ const v=$('cameraPreview'),t=stream?.getVideoTracks?.()[0],s=t?.getSettings?.()||{};
+ const r=v.getBoundingClientRect();
+ return [
+ 'CÂMERA NORMAL',
+ 'Vídeo intrínseco: '+v.videoWidth+'×'+v.videoHeight,
+ 'Track settings: '+JSON.stringify({width:s.width,height:s.height,frameRate:s.frameRate,facingMode:s.facingMode}),
+ 'Preview CSS: '+Math.round(r.width)+'×'+Math.round(r.height),
+ 'object-fit: '+getComputedStyle(v).objectFit,
+ 'Janela: '+innerWidth+'×'+innerHeight,
+ 'DPR: '+devicePixelRatio,
+ 'visualViewport: '+(visualViewport?visualViewport.width+'×'+visualViewport.height+' escala '+visualViewport.scale:'indisponível')
+ ].join('\n');
+}
+function releaseCamera(){
+ if(stream){stream.getTracks().forEach(t=>{try{t.stop()}catch(_){}});stream=null;}
+ $('cameraPreview').pause();$('cameraPreview').srcObject=null;$('cameraPreview').style.display='none';
+}
+function cleanup(){
+ releaseCamera();
+ if(renderer){renderer.setAnimationLoop(null);renderer.dispose();renderer.domElement.remove();renderer=null;}
+ document.documentElement.classList.remove('xr-session-active');document.body.classList.remove('xr-session-active');
+ $('panel').style.display='none';$('copy').style.display='none';$('stop').style.display='none';$('setup').style.display='flex';
+ $('camera').disabled=false;$('toXR').disabled=true;
+}
+$('camera').onclick=async()=>{
+ $('camera').disabled=true;$('message').textContent='Solicitando câmera normal…';
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'}}});
+  const v=$('cameraPreview');v.srcObject=stream;v.style.display='block';await v.play();
+  diag=cameraInfo();$('panel').textContent=diag;$('panel').style.display='block';$('copy').style.display='block';
+  $('setup').style.display='none';$('toXR').disabled=false;
+  $('message').textContent='Câmera normal ativa. Não mova o aparelho; compare o mesmo objeto nas duas etapas.';
+ }catch(e){$('message').textContent='FALHA CÂMERA: '+(e.message||String(e));$('camera').disabled=false;}
+};
+$('toXR').onclick=async()=>{
+ $('toXR').disabled=true;$('message').textContent='Encerrando câmera normal…';
+ const before=cameraInfo();releaseCamera();await new Promise(r=>setTimeout(r,700));
+ try{
+  if(!navigator.xr)throw new Error('navigator.xr indisponível.');
+  if(!await navigator.xr.isSessionSupported('immersive-ar'))throw new Error('immersive-ar não suportado.');
+  session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test','dom-overlay'],domOverlay:{root:$('xrOverlayRoot')}});
+  document.documentElement.classList.add('xr-session-active');document.body.classList.add('xr-session-active');
+  renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25));renderer.setSize(innerWidth,innerHeight);renderer.setClearColor(0x000000,0);
+  renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local');renderer.domElement.id='xrCanvas';document.body.appendChild(renderer.domElement);
+  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
+  await renderer.xr.setSession(session);
+  const ref=await session.requestReferenceSpace('local');
+  $('setup').style.display='none';$('panel').style.display='block';$('copy').style.display='block';$('stop').style.display='block';
+  session.addEventListener('end',()=>{ending=true;cleanup();});
+  renderer.setAnimationLoop((time,frame)=>{
+   if(!frame)return;frames++;
+   const pose=frame.getViewerPose(ref);
+   if(pose?.views?.length){
+    const view=pose.views[0],p=view.projectionMatrix,attrs=renderer.getContext().getContextAttributes();
+    let viewport='indisponível';
+    try{const layer=renderer.xr.getBaseLayer?.()||session.renderState.baseLayer;if(layer){const vp=layer.getViewport(view);if(vp)viewport=vp.x+','+vp.y+' '+vp.width+'×'+vp.height;}}catch(e){viewport='erro: '+e.message;}
+    const rect=renderer.domElement.getBoundingClientRect();
+    diag=before+'\n\nWEBXR ATIVO\nFrames: '+frames+
+     '\nBlend: '+(session.environmentBlendMode||'n/i')+' · Visibilidade: '+(session.visibilityState||'n/i')+
+     '\nViews: '+pose.views.length+' · FOV V/H: '+(2*Math.atan(1/p[5])*180/Math.PI).toFixed(1)+'° / '+(2*Math.atan(1/p[0])*180/Math.PI).toFixed(1)+'°'+
+     '\nViewport XR: '+viewport+
+     '\nCanvas CSS: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · interno: '+renderer.domElement.width+'×'+renderer.domElement.height+
+     '\nJanela: '+innerWidth+'×'+innerHeight+' · DPR real: '+devicePixelRatio+' · DPR renderer: '+renderer.getPixelRatio()+
+     '\nAlpha: '+(attrs?.alpha)+' · premultiplied: '+(attrs?.premultipliedAlpha)+
+     '\nRecursos: '+Array.from(session.enabledFeatures||[]).join(', ')+
+     '\nDOM Overlay: xrOverlayRoot';
+    $('panel').textContent=diag;
+   }
+   renderer.render(scene,camera);
+  });
+ }catch(e){
+  const msg='FALHA WEBXR: '+(e.message||String(e));if(session&&!ending){try{await session.end()}catch(_){}}
+  cleanup();$('message').textContent=msg+'\n'+before;
+ }
+};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(diag);$('copy').textContent='DIAGNÓSTICO COPIADO';}catch(e){$('panel').textContent=diag+'\n\nNão foi possível copiar: '+e.message;}};
+$('stop').onclick=()=>{if(session&&!ending){try{session.end()}catch(_){cleanup()}}else cleanup();};
+window.addEventListener('resize',()=>{if(renderer)renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>
