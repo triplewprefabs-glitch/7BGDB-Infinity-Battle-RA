@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06111e">
+<title>ENERGY OPS · Teste WebXR OverlayRoot</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020811;color:#eafaff;font-family:system-ui,Arial,sans-serif}
+html.xr-session-active,body.xr-session-active{background:transparent!important}
+#xrOverlayRoot{display:contents}
+#xrOverlayRoot:xr-overlay{display:block!important;background:rgba(0,0,0,0)!important;position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;box-sizing:border-box!important;transform:none!important;contain:none!important;z-index:2147483646!important;overflow:visible!important;pointer-events:none!important}
+body.xr-session-active #panel{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body.xr-session-active #xrCanvas{background:transparent!important}
+#setup{position:fixed;z-index:20;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:#020914ed}
+.card{width:min(460px,100%);padding:20px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
+h1{margin:0 0 10px;color:#72e7ff;font-size:21px}
+p{font-size:14px;line-height:1.5;color:#c5dce7}
+button{width:100%;padding:14px;margin:6px 0;border:1px solid #52d8f2;border-radius:9px;background:#087da2;color:white;font-size:15px;font-weight:800}
+button:disabled{opacity:.4}
+#panel{position:fixed;z-index:40;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 62px);max-height:28dvh;overflow:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:12px;line-height:1.45;white-space:pre-wrap;display:none;pointer-events:none}
+#stop{position:fixed;z-index:2147483002;left:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);width:auto;display:none;background:#682532}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+<div id="setup"><div class="card">
+<h1>ENERGY OPS · OVERLAY ROOT</h1>
+<p>Teste isolado com a mesma raiz DOM Overlay do jogo principal (xrOverlayRoot). Não inicia MindAR e não modifica o jogo.</p>
+<button id="start">INICIAR WEBXR OVERLAYROOT</button>
+<p id="message">Use no mesmo celular e navegador dos testes anteriores.</p>
+</div></div>
+<div id="xrOverlayRoot">
+ <div id="panel">Aguardando WebXR…</div>
+ <button id="stop">ENCERRAR TESTE</button>
+</div>
+<script type="module">
+import * as THREE from 'three';
+const $=id=>document.getElementById(id);
+let session=null,renderer=null,frames=0,ending=false;
+function cleanup(){
+ if(renderer){renderer.setAnimationLoop(null);renderer.dispose();renderer.domElement.remove();renderer=null;}
+ document.documentElement.classList.remove('xr-session-active');
+ document.body.classList.remove('xr-session-active');
+ $('panel').style.display='none';$('stop').style.display='none';$('setup').style.display='flex';$('start').disabled=false;
+}
+$('start').addEventListener('click',async()=>{
+ $('start').disabled=true;$('message').textContent='Solicitando immersive-ar com xrOverlayRoot…';
+ try{
+  if(!navigator.xr)throw new Error('navigator.xr indisponível.');
+  if(!await navigator.xr.isSessionSupported('immersive-ar'))throw new Error('immersive-ar não suportado.');
+  const overlayRoot=$('xrOverlayRoot');
+  session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test','dom-overlay'],domOverlay:{root:overlayRoot}});
+  document.documentElement.classList.add('xr-session-active');document.body.classList.add('xr-session-active');
+  renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25));renderer.setSize(innerWidth,innerHeight);renderer.setClearColor(0x000000,0);
+  renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local');renderer.domElement.id='xrCanvas';document.body.appendChild(renderer.domElement);
+  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
+  await renderer.xr.setSession(session);
+  const refSpace=await session.requestReferenceSpace('local');
+  $('setup').style.display='none';$('panel').style.display='block';$('stop').style.display='block';
+  $('panel').textContent='WEBXR OVERLAYROOT ATIVO\nAguardando primeiro frame…';
+  session.addEventListener('end',()=>{ending=true;cleanup();});
+  renderer.setAnimationLoop((time,frame)=>{
+   if(!frame)return;frames++;
+   const pose=frame.getViewerPose(refSpace);
+   if(pose&&pose.views&&pose.views.length){
+    const proj=pose.views[0].projectionMatrix,attrs=renderer.getContext().getContextAttributes();
+    const fv=(2*Math.atan(1/proj[5])*180/Math.PI).toFixed(1),fh=(2*Math.atan(1/proj[0])*180/Math.PI).toFixed(1);
+    $('panel').textContent='WEBXR OVERLAYROOT ATIVO\nFrames: '+frames+'\nBlend: '+(session.environmentBlendMode||'n/i')+' · Visibilidade: '+(session.visibilityState||'n/i')+'\nViews: '+pose.views.length+' · FOV V/H: '+fv+'° / '+fh+'°\nCanvas: '+innerWidth+'×'+innerHeight+' · DPR: '+renderer.getPixelRatio()+'\nAlpha: '+(attrs?attrs.alpha:'n/i')+' · premultiplied: '+(attrs?attrs.premultipliedAlpha:'n/i')+'\nRecursos: '+Array.from(session.enabledFeatures||[]).join(', ')+'\nDOM Overlay: xrOverlayRoot';
+   }
+   renderer.render(scene,camera);
+  });
+ }catch(e){
+  const msg='FALHA WEBXR: '+(e&&e.message?e.message:String(e));
+  if(session&&!ending){try{await session.end();}catch(_){}}
+  cleanup();$('message').textContent=msg;
+ }
+});
+$('stop').addEventListener('click',async()=>{if(session){try{await session.end();}catch(e){cleanup();}}else cleanup();});
+window.addEventListener('resize',()=>{if(renderer)renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>
