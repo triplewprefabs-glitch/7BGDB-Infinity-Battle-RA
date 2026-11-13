@@ -35,8 +35,7 @@ button:disabled{opacity:.35}#stop{position:fixed;z-index:8;left:10px;bottom:calc
 </div></div>
 <button id="stop">ENCERRAR TESTE</button>
 <script type="module">
-import * as THREE from 'three';
-import {MindARThree} from 'mindar-image-three';
+let THREE=null,MindARThree=null;
 const $=id=>document.getElementById(id);
 const panel=$('panel'),status=$('status');
 let mindar=null,anchor=null,mindarRenderer=null,markerCameraMatrix=null,markerSeen=false;
@@ -48,6 +47,11 @@ function matrixText(m){const e=m.elements;return 'posição ['+e[12].toFixed(3)+
 $('startMind').onclick=async()=>{
  $('startMind').disabled=true;report('Iniciando MindAR e câmera…');
  try{
+  report('Carregando bibliotecas 3D e MindAR…');
+  const loaded=await Promise.all([import('three'),import('mindar-image-three')]);
+  THREE=loaded[0];MindARThree=loaded[1].MindARThree;
+  if(!MindARThree||!THREE)throw new Error('As bibliotecas não foram carregadas corretamente.');
+  report('Bibliotecas carregadas. Abrindo a câmera…');
   mindar=new MindARThree({container:$('mindarRoot'),imageTargetSrc:target,maxTrack:1,filterMinCF:.005,filterBeta:1500,warmupTolerance:3,missTolerance:12,uiLoading:'no',uiScanning:'no',uiError:'no'});
   mindarRenderer=mindar.renderer;anchor=mindar.addAnchor(0);
   anchor.onTargetFound=()=>{markerSeen=true;$('stopMind').disabled=false;};
@@ -62,7 +66,7 @@ $('startMind').onclick=async()=>{
    mindarRenderer.render(mindar.scene,mindar.camera);
   });
   report('MINDAR ATIVO\nAponte para o marcador inteiro. Quando for detectado, o botão de captura será habilitado.\nQuadros MindAR: 0');
- }catch(e){report('FALHA MINDAR: '+(e.message||String(e)));$('startMind').disabled=false;}
+ }catch(e){console.error(e);report('FALHA MINDAR: '+(e.message||String(e))+'\nVerifique internet, permissão da câmera e se a página foi aberta em HTTPS.');$('startMind').disabled=false;$('startMind').textContent='TENTAR NOVAMENTE';}
 };
 $('stopMind').onclick=async()=>{
  if(!markerCameraMatrix){report('Ainda não foi possível capturar a pose do marcador. Mantenha-o visível e tente novamente.');return;}
