@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06111e">
+<title>ENERGY OPS · Ponte MindAR → WebXR</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020811;color:#eafaff;font-family:system-ui,Arial,sans-serif}
+#mindarRoot,#xrRoot{position:fixed;inset:0;background:#000}#mindarRoot video,#mindarRoot canvas,#xrRoot canvas{position:absolute!important;inset:0;width:100%!important;height:100%!important;object-fit:cover}
+#xrRoot{display:none}
+#panel{position:fixed;z-index:5;top:env(safe-area-inset-top);left:8px;right:8px;max-height:42dvh;overflow:auto;padding:12px;border:1px solid #49d9f5;border-radius:12px;background:#031321e8;font-size:12px;line-height:1.45;white-space:pre-wrap}
+#setup{position:fixed;z-index:10;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#020914ed}
+.card{width:min(460px,100%);max-height:94dvh;overflow:auto;padding:18px;border:1px solid #49d9f5;border-radius:18px;background:#061827}
+h1{margin:0 0 8px;color:#72e7ff;font-size:20px}p{font-size:13px;line-height:1.45;color:#c5dce7}
+button{width:100%;padding:12px;margin:5px 0;border:1px solid #52d8f2;border-radius:9px;background:#087da2;color:white;font-size:14px;font-weight:800}
+button:disabled{opacity:.35}#stop{position:fixed;z-index:8;left:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);width:auto;background:#682532;display:none}
+.small{font-size:11px;color:#ffdf9c}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js","mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"}}
+</script>
+</head>
+<body>
+<div id="mindarRoot"></div><div id="xrRoot"></div>
+<div id="panel" style="display:none">Aguardando início…</div>
+<div id="setup"><div class="card">
+<h1>ENERGY OPS · PONTE MINDAR → WEBXR</h1>
+<p><b>Teste isolado.</b> Primeiro o MindAR reconhece o marcador de 15 × 15 cm e captura a pose câmera–marcador. Depois encerramos completamente o MindAR e iniciamos uma sessão WebXR separada.</p>
+<p>Mantenha o celular imóvel durante a troca. Marcador deitado no chão, imagem para cima, boa iluminação. Este primeiro protótipo valida a transição em <b>um aparelho</b>; ainda não altera o multiplayer nem o jogo principal.</p>
+<button id="startMind">1 · INICIAR MINDAR</button>
+<button id="stopMind" disabled>2 · CAPTURAR E ENCERRAR MINDAR</button>
+<button id="startXR" disabled>3 · INICIAR WEBXR</button>
+<p id="status" class="small">Aguardando. Use Chrome Android com permissão de câmera e acesso HTTPS.</p>
+</div></div>
+<button id="stop">ENCERRAR TESTE</button>
+<script type="module">
+import * as THREE from 'three';
+import {MindARThree} from 'mindar-image-three';
+const $=id=>document.getElementById(id);
+const panel=$('panel'),status=$('status');
+let mindar=null,anchor=null,mindarRenderer=null,markerCameraMatrix=null,markerSeen=false;
+let xrSession=null,xrRenderer=null,xrReferenceSpace=null,xrMarkerMatrix=null,xrFrames=0;
+let mindarFrames=0,phase='idle';
+const target='./energy-ops-marker.mind';
+function report(message){status.textContent=message;panel.textContent=message;}
+function matrixText(m){const e=m.elements;return 'posição ['+e[12].toFixed(3)+', '+e[13].toFixed(3)+', '+e[14].toFixed(3)+']';}
+$('startMind').onclick=async()=>{
+ $('startMind').disabled=true;report('Iniciando MindAR e câmera…');
+ try{
+  mindar=new MindARThree({container:$('mindarRoot'),imageTargetSrc:target,maxTrack:1,filterMinCF:.005,filterBeta:1500,warmupTolerance:3,missTolerance:12,uiLoading:'no',uiScanning:'no',uiError:'no'});
+  mindarRenderer=mindar.renderer;anchor=mindar.addAnchor(0);
+  anchor.onTargetFound=()=>{markerSeen=true;$('stopMind').disabled=false;};
+  anchor.onTargetLost=()=>{markerSeen=false;};
+  await mindar.start();phase='mindar';$('panel').style.display='block';$('setup').style.display='none';$('stop').style.display='block';
+  mindarRenderer.setAnimationLoop(()=>{
+   mindarFrames++;
+   if(markerSeen){
+    anchor.group.updateMatrixWorld(true);mindar.camera.updateMatrixWorld(true);
+    markerCameraMatrix=new THREE.Matrix4().copy(anchor.group.matrixWorld).invert().multiply(mindar.camera.matrixWorld);
+   }
+   mindarRenderer.render(mindar.scene,mindar.camera);
+  });
+  report('MINDAR ATIVO\nAponte para o marcador inteiro. Quando for detectado, o botão de captura será habilitado.\nQuadros MindAR: 0');
+ }catch(e){report('FALHA MINDAR: '+(e.message||String(e)));$('startMind').disabled=false;}
+};
+$('stopMind').onclick=async()=>{
+ if(!markerCameraMatrix){report('Ainda não foi possível capturar a pose do marcador. Mantenha-o visível e tente novamente.');return;}
+ const snapshot=markerCameraMatrix.clone();
+ try{if(mindarRenderer)mindarRenderer.setAnimationLoop(null);if(mindar)await mindar.stop();}catch(e){report('Erro ao encerrar MindAR: '+(e.message||String(e)));return;}
+ markerCameraMatrix=snapshot;phase='handoff';$('mindarRoot').style.display='none';$('stopMind').disabled=true;$('startXR').disabled=false;
+ report('CAPTURA MINDAR SALVA\n'+matrixText(snapshot)+'\nMindAR encerrado. Agora toque em “3 · INICIAR WEBXR” para abrir a nova sessão de câmera.');
+};
+$('startXR').onclick=async()=>{
+ $('startXR').disabled=true;report('Solicitando sessão WebXR immersive-ar…');
+ try{
+  if(!navigator.xr)throw new Error('navigator.xr não está disponível neste navegador.');
+  const supported=await navigator.xr.isSessionSupported('immersive-ar');
+  if(!supported)throw new Error('Este navegador/aparelho não oferece immersive-ar.');
+  xrSession=await navigator.xr.requestSession('immersive-ar',{optionalFeatures:['local','dom-overlay'],domOverlay:{root:document.body}});
+  $('xrRoot').style.display='block';
+  xrRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+  xrRenderer.setPixelRatio(Math.min(devicePixelRatio,2));xrRenderer.setSize(innerWidth,innerHeight);xrRenderer.setClearColor(0x000000,0);
+  xrRenderer.xr.enabled=true;xrRenderer.xr.setReferenceSpaceType('local');$('xrRoot').appendChild(xrRenderer.domElement);
+  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
+  const markerViz=new THREE.AxesHelper(.25);scene.add(markerViz);
+  const sphere=new THREE.Mesh(new THREE.SphereGeometry(.035,16,12),new THREE.MeshBasicMaterial({color:0xffea00}));scene.add(sphere);
+  await xrRenderer.xr.setSession(xrSession);
+  xrReferenceSpace=await xrSession.requestReferenceSpace('local');
+  phase='webxr';
+  xrRenderer.setAnimationLoop((time,frame)=>{
+   if(!frame)return;xrFrames++;
+   const pose=frame.getViewerPose(xrReferenceSpace);
+   if(pose&&pose.views&&pose.views.length){
+    const viewerMatrix=new THREE.Matrix4().fromArray(pose.transform.matrix);
+    if(!xrMarkerMatrix){
+     // T(XR<-marcador) = T(XR<-camera) × inverse(T(marcador<-camera))
+     xrMarkerMatrix=viewerMatrix.clone().multiply(markerCameraMatrix.clone().invert());
+     markerViz.matrixAutoUpdate=false;markerViz.matrix.copy(xrMarkerMatrix);markerViz.matrixWorldNeedsUpdate=true;
+     sphere.position.setFromMatrixPosition(xrMarkerMatrix);
+    }
+    const cameraInMarker=xrMarkerMatrix.clone().invert().multiply(viewerMatrix);
+    const p=new THREE.Vector3().setFromMatrixPosition(cameraInMarker);
+    panel.textContent='WEBXR ATIVO · HANDOFF EXECUTADO\nFrames WebXR: '+xrFrames+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem de marcador calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nMantenha o aparelho imóvel por alguns segundos e observe se as coordenadas estabilizam.';
+   }else{
+    panel.textContent='Sessão WebXR aberta, aguardando viewer pose…\nFrames: '+xrFrames;
+   }
+   xrRenderer.render(scene,camera);
+  });
+  xrSession.addEventListener('end',()=>{phase='ended';report('Sessão WebXR encerrada.');$('startXR').disabled=false;});
+  report('Sessão WebXR aberta. Aguardando os primeiros quadros e a pose da câmera…');
+ }catch(e){report('FALHA NA TRANSIÇÃO WEBXR: '+(e.message||String(e))+'\nMindAR já foi encerrado. A falha será registrada sem alterar o jogo principal.');$('startXR').disabled=false;}
+};
+$('stop').onclick=async()=>{
+ try{if(mindarRenderer)mindarRenderer.setAnimationLoop(null);if(mindar)await mindar.stop();}catch(e){}
+ try{if(xrRenderer)xrRenderer.setAnimationLoop(null);if(xrSession&&xrSession.visibilityState!=='ended')await xrSession.end();}catch(e){}
+ phase='ended';$('stop').style.display='none';$('setup').style.display='flex';$('mindarRoot').style.display='block';$('xrRoot').style.display='none';
+ $('startMind').disabled=false;$('stopMind').disabled=true;$('startXR').disabled=true;report('Teste encerrado. Recarregue a página para iniciar uma nova rodada.');
+};
+window.addEventListener('error',e=>report('ERRO JAVASCRIPT: '+(e.message||'falha')));
+window.addEventListener('unhandledrejection',e=>report('ERRO ASSÍNCRONO: '+(e.reason?.message||String(e.reason))));
+</script>
+</body></html>
