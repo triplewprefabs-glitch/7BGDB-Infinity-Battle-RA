@@ -35,7 +35,8 @@ button:disabled{opacity:.35}#stop{position:fixed;z-index:8;left:10px;bottom:calc
 </div></div>
 <button id="stop">ENCERRAR TESTE</button>
 <script type="module">
-let THREE=null,MindARThree=null;
+import * as THREE from "three";
+import {MindARThree} from "mindar-image-three";
 const $=id=>document.getElementById(id);
 const panel=$('panel'),status=$('status');
 let mindar=null,anchor=null,mindarRenderer=null,markerCameraMatrix=null,markerSeen=false;
@@ -47,15 +48,11 @@ function matrixText(m){const e=m.elements;return 'posição ['+e[12].toFixed(3)+
 $('startMind').onclick=async()=>{
  $('startMind').disabled=true;report('Iniciando MindAR e câmera…');
  try{
-  report('Carregando bibliotecas 3D e MindAR…');
-  const loaded=await Promise.all([import('three'),import('mindar-image-three')]);
-  THREE=loaded[0];MindARThree=loaded[1].MindARThree;
-  if(!MindARThree||!THREE)throw new Error('As bibliotecas não foram carregadas corretamente.');
   report('Bibliotecas carregadas. Abrindo a câmera…');
   mindar=new MindARThree({container:$('mindarRoot'),imageTargetSrc:target,maxTrack:1,filterMinCF:.005,filterBeta:1500,warmupTolerance:3,missTolerance:12,uiLoading:'no',uiScanning:'no',uiError:'no'});
   mindarRenderer=mindar.renderer;anchor=mindar.addAnchor(0);
-  anchor.onTargetFound=()=>{markerSeen=true;$('stopMind').disabled=false;};
-  anchor.onTargetLost=()=>{markerSeen=false;};
+  anchor.onTargetFound=()=>{markerSeen=true;$('stopMind').disabled=false;report('MARCADOR DETECTADO! Mantenha o celular imóvel e capture a calibração.');};
+  anchor.onTargetLost=()=>{markerSeen=false;report('Marcador saiu da imagem. Reposicione a câmera até enquadrar o marcador inteiro.');};
   await mindar.start();phase='mindar';$('panel').style.display='block';$('setup').style.display='none';$('stop').style.display='block';
   mindarRenderer.setAnimationLoop(()=>{
    mindarFrames++;
@@ -65,7 +62,8 @@ $('startMind').onclick=async()=>{
    }
    mindarRenderer.render(mindar.scene,mindar.camera);
   });
-  report('MINDAR ATIVO\nAponte para o marcador inteiro. Quando for detectado, o botão de captura será habilitado.\nQuadros MindAR: 0');
+  report('MINDAR ATIVO\nEstado: PROCURANDO MARCADOR\nAponte para o marcador inteiro, sem cortar as bordas. Afaste a câmera cerca de 30–60 cm e evite reflexos.');
+  setInterval(()=>{if(phase==='mindar'&&!markerSeen){panel.textContent='MINDAR ATIVO · PROCURANDO MARCADOR\\nQuadros processados: '+mindarFrames+'\\nMantenha o marcador inteiro visível, bem iluminado e relativamente plano.';}},500);
  }catch(e){console.error(e);report('FALHA MINDAR: '+(e.message||String(e))+'\nVerifique internet, permissão da câmera e se a página foi aberta em HTTPS.');$('startMind').disabled=false;$('startMind').textContent='TENTAR NOVAMENTE';}
 };
 $('stopMind').onclick=async()=>{
