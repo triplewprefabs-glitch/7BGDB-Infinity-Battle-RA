@@ -26,7 +26,7 @@ button{border:0;border-radius:9px;padding:11px 14px;margin:6px 6px 0 0;font-weig
   <h1>ENERGY OPS — TESTE DE ESCALA WEBXR</h1>
   <p>Grade virtual: <b>50 × 50 cm</b> · quadrado amarelo: <b>10 × 10 cm</b> · distância: <b>1 metro</b>.</p>
   <p id="status">Página carregada. Toque em INICIAR TESTE WEBXR.</p>
-  <p id="hint">A grade ficará sempre 1 m à frente da câmera. Se possível, compare o quadrado amarelo com um quadrado físico de 10 cm segurado aproximadamente a 1 m do celular.</p>
+  <p id="hint">A grade será fixada uma única vez a 1 m à frente. Depois, mova o celular para observar a paralaxe. Se possível, compare o quadrado amarelo com um quadrado físico de 10 cm segurado aproximadamente a 1 m do celular.</p>
   <button id="start">INICIAR TESTE WEBXR</button><button id="stop">ENCERRAR</button>
  </div>
 </div>
@@ -46,7 +46,7 @@ function buildScene(){
  renderer.setSize(window.innerWidth,window.innerHeight,false);
  renderer.setClearColor(0x000000,0);
  renderer.xr.enabled=true;
- renderer.xr.setReferenceSpaceType('viewer');
+ renderer.xr.setReferenceSpaceType('local');
  renderer.domElement.style.pointerEvents='none';
  document.body.appendChild(renderer.domElement);
 
@@ -76,9 +76,10 @@ function buildScene(){
  const cube=new THREE.Mesh(new THREE.BoxGeometry(.04,.04,.04),new THREE.MeshBasicMaterial({color:0xffdf45,wireframe:true,depthTest:false}));
  cube.position.set(0,0,.025);cube.renderOrder=14;gridGroup.add(cube);
 
+ let anchored=false;
  const dir=new THREE.Vector3(),pos=new THREE.Vector3(),quat=new THREE.Quaternion();
  renderer.setAnimationLoop(()=>{
-  if(renderer.xr.isPresenting){
+  if(renderer.xr.isPresenting && !anchored){
    const xrCam=renderer.xr.getCamera(camera);
    xrCam.getWorldPosition(pos);
    xrCam.getWorldQuaternion(quat);
@@ -86,6 +87,8 @@ function buildScene(){
    gridGroup.position.copy(pos).addScaledVector(dir,1);
    gridGroup.quaternion.copy(quat);
    gridGroup.updateMatrixWorld(true);
+   anchored=true;
+   setStatus('GRADE FIXADA NO ESPAÇO — mova o celular para observar a paralaxe.');
   }
   renderer.render(scene,camera);
  });
