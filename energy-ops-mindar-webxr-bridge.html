@@ -50,7 +50,7 @@ import {MindARThree} from "mindar-image-three";
 const $=id=>document.getElementById(id);
 const panel=$('panel'),status=$('status');
 let mindar=null,anchor=null,mindarRenderer=null,markerCameraMatrix=null,mindarAnchorMatrix=null,mindarCameraWorldMatrix=null,markerSeen=false;
-let xrSession=null,xrRenderer=null,xrReferenceSpace=null,xrMarkerMatrix=null,xrFrames=0;
+let xrSession=null,xrRenderer=null,xrReferenceSpace=null,xrMarkerMatrix=null,markerCameraRigidMatrix=null,xrFrames=0;
 let mindarFrames=0,phase='idle';
 const target='./energy-ops-marker.mind';
 function report(message){status.textContent=message;panel.textContent=message;}
@@ -144,14 +144,18 @@ $('startXR').onclick=async()=>{
     const viewerMatrix=new THREE.Matrix4().fromArray(pose.transform.matrix);
     if(!xrMarkerMatrix){
      // T(XR<-marcador) = T(XR<-camera) × inverse(T(marcador<-camera))
-     xrMarkerMatrix=viewerMatrix.clone().multiply(markerCameraMatrix.clone().invert());
+     // Remove apenas a escala artificial do MindAR; preserva posição e orientação relativas.
+     const markerPos=new THREE.Vector3(),markerQuat=new THREE.Quaternion(),markerScale=new THREE.Vector3();
+     markerCameraMatrix.decompose(markerPos,markerQuat,markerScale);
+     markerCameraRigidMatrix=new THREE.Matrix4().compose(markerPos,markerQuat,new THREE.Vector3(1,1,1));
+     xrMarkerMatrix=viewerMatrix.clone().multiply(markerCameraRigidMatrix.clone().invert());
      markerViz.matrixAutoUpdate=false;markerViz.matrix.copy(xrMarkerMatrix);markerViz.matrixWorldNeedsUpdate=true;
      markerSurface.matrix.copy(xrMarkerMatrix);markerSurface.matrixWorldNeedsUpdate=true;
      sphere.position.setFromMatrixPosition(xrMarkerMatrix);
     }
     const cameraInMarker=xrMarkerMatrix.clone().invert().multiply(viewerMatrix);
     const p=new THREE.Vector3().setFromMatrixPosition(cameraInMarker);
-    const attrs=xrRenderer.getContext().getContextAttributes();const vp=xrSession.renderState.baseLayer?.getViewport(pose.views[0]);const rect=xrRenderer.domElement.getBoundingClientRect();const vv=window.visualViewport;const proj=pose.views[0].projectionMatrix;const fovV=(2*Math.atan(1/proj[5])*180/Math.PI).toFixed(1);const fovH=(2*Math.atan(1/proj[0])*180/Math.PI).toFixed(1);panel.textContent='WEBXR ATIVO · DIAGNÓSTICO v23\n'+matrixDetail('MindAR anchor',mindarAnchorMatrix)+'\n'+matrixDetail('MindAR camera',mindarCameraWorldMatrix)+'\n'+matrixDetail('MindAR camera relativa ao marcador',markerCameraMatrix)+'\n'+matrixDetail('WebXR viewer',viewerMatrix)+'\n'+matrixDetail('Marcador calculado no XR',xrMarkerMatrix)+'\nFrames WebXR: '+xrFrames+'\nModo de composição XR: '+(xrSession.environmentBlendMode||'não informado')+'\nVisibilidade: '+(xrSession.visibilityState||'não informada')+'\nViews XR: '+pose.views.length+' · FOV vertical: '+fovV+'° · horizontal: '+fovH+'°\nCanvas alpha: '+(attrs?attrs.alpha:'não informado')+' · premultipliedAlpha: '+(attrs?attrs.premultipliedAlpha:'não informado')+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nViewport XR: '+(vp?vp.width+'×'+vp.height:'indisponível')+'\nCanvas CSS: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · interno: '+xrRenderer.domElement.width+'×'+xrRenderer.domElement.height+'\nJanela: '+innerWidth+'×'+innerHeight+' · visualViewport: '+(vv?Math.round(vv.width)+'×'+Math.round(vv.height)+' escala '+vv.scale:'indisponível')+'\nDPR: '+devicePixelRatio+' · Quadrado ciano = área estimada do marcador (15×15 cm); confira alinhamento físico.';
+    const attrs=xrRenderer.getContext().getContextAttributes();const vp=xrSession.renderState.baseLayer?.getViewport(pose.views[0]);const rect=xrRenderer.domElement.getBoundingClientRect();const vv=window.visualViewport;const proj=pose.views[0].projectionMatrix;const fovV=(2*Math.atan(1/proj[5])*180/Math.PI).toFixed(1);const fovH=(2*Math.atan(1/proj[0])*180/Math.PI).toFixed(1);panel.textContent='WEBXR ATIVO · DIAGNÓSTICO v24\n'+matrixDetail('MindAR anchor',mindarAnchorMatrix)+'\n'+matrixDetail('MindAR camera',mindarCameraWorldMatrix)+'\n'+matrixDetail('MindAR camera relativa ao marcador (bruta)',markerCameraMatrix)+'\n'+matrixDetail('MindAR camera relativa ao marcador (escala normalizada)',markerCameraRigidMatrix)+'\n'+matrixDetail('WebXR viewer',viewerMatrix)+'\n'+matrixDetail('Marcador calculado no XR',xrMarkerMatrix)+'\nFrames WebXR: '+xrFrames+'\nModo de composição XR: '+(xrSession.environmentBlendMode||'não informado')+'\nVisibilidade: '+(xrSession.visibilityState||'não informada')+'\nViews XR: '+pose.views.length+' · FOV vertical: '+fovV+'° · horizontal: '+fovH+'°\nCanvas alpha: '+(attrs?attrs.alpha:'não informado')+' · premultipliedAlpha: '+(attrs?attrs.premultipliedAlpha:'não informado')+'\nCâmera relativa ao marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3)+'\nOrigem calculada no espaço XR: '+matrixText(xrMarkerMatrix)+'\nViewport XR: '+(vp?vp.width+'×'+vp.height:'indisponível')+'\nCanvas CSS: '+Math.round(rect.width)+'×'+Math.round(rect.height)+' · interno: '+xrRenderer.domElement.width+'×'+xrRenderer.domElement.height+'\nJanela: '+innerWidth+'×'+innerHeight+' · visualViewport: '+(vv?Math.round(vv.width)+'×'+Math.round(vv.height)+' escala '+vv.scale:'indisponível')+'\nDPR: '+devicePixelRatio+' · Quadrado ciano = área estimada do marcador (15×15 cm); confira alinhamento físico.';
    }else{
     panel.textContent='Sessão WebXR aberta, aguardando viewer pose…\nFrames: '+xrFrames;
    }
