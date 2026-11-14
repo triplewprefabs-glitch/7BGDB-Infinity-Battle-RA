@@ -17,12 +17,14 @@ small{color:#9bb1c6}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <p><b>Preparação:</b> use um terceiro celular ou uma impressão para exibir o marcador. Os dois aparelhos de teste devem enxergar o mesmo marcador ao mesmo tempo.</p>
 <canvas id="target" width="512" height="512"></canvas>
 <button id="start">INICIAR WEBXR IMAGE TRACKING</button>
+<p><b>ID DESTE CELULAR</b></p><input id="myId" readonly placeholder="Aguardando conexão com servidor…">
 <div class="row"><button id="copy">COPIAR MEU ID</button><button id="connect">CONECTAR AO OUTRO</button></div>
 <input id="remoteId" placeholder="Cole aqui o ID do outro celular">
-<small>Abra esta mesma página nos dois aparelhos. Troquem os IDs usando COPIAR MEU ID e CONECTAR AO OUTRO.</small>
+<button id="copyDiag">COPIAR DIAGNÓSTICO</button>
+<small>Primeiro aguarde o ID aparecer nos dois aparelhos. Troquem os IDs e conectem. O botão de diagnóstico copia os estados de WebXR e da conexão.</small>
 <button id="stop">ENCERRAR TESTE</button>
 <pre id="diag">Aguardando início. O teste exige navegador com WebXR image-tracking.</pre>
-<pre id="remote">OUTRO CELULAR: ainda não conectado.</pre>
+<pre id="peerStatus">CONEXÃO: inicializando PeerJS…</pre><pre id="remote">OUTRO CELULAR: ainda não conectado.</pre>
 </main>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="module">
@@ -43,15 +45,44 @@ let session=null,renderer=null,scene=null,camera=null,markerMesh=null,refSpace=n
 const fmt=n=>Number(n).toFixed(3);
 function log(s){diag.textContent=s}
 function sendPose(){if(conn&&conn.open&&myPose)conn.send({type:'pose',...myPose,at:Date.now()});}
-function setupPeer(){
- if(!window.Peer){remoteOut.textContent='PeerJS não carregou. A medição local ainda funciona.';return;}
- peer=new Peer();
- peer.on('open',id=>{document.querySelector('#copy').onclick=()=>{navigator.clipboard?.writeText(id);remoteOut.textContent='SEU ID: '+id+' (copie e envie ao outro celular)';};remoteOut.textContent='SEU ID: '+id+'\nEnvie este ID ao outro aparelho.';});
- peer.on('connection',c=>{conn=c;wire(c);});
- peer.on('error',e=>{remoteOut.textContent='Conexão PeerJS: '+e.type+' — '+e.message;});
+function setPeerStatus(s){document.querySelector('#peerStatus').textContent=s;}
+function copyText(value){
+ if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(value).then(()=>true).catch(()=>fallbackCopy(value));
+ return Promise.resolve(fallbackCopy(value));
 }
-function wire(c){conn=c;c.on('open',()=>{remoteOut.textContent='Conectado ao outro celular. Aguardando pose…';});c.on('data',d=>{if(d.type==='pose')remoteOut.textContent='OUTRO CELULAR · coordenadas relativas ao marcador\nX: '+fmt(d.x)+' m   Y: '+fmt(d.y)+' m   Z: '+fmt(d.z)+' m\nOrientação quaternion: '+d.q.map(fmt).join(', ')+'\nAtualização: '+new Date(d.at).toLocaleTimeString();});c.on('close',()=>{remoteOut.textContent='Conexão encerrada.';});}
-document.querySelector('#connect').onclick=()=>{const id=document.querySelector('#remoteId').value.trim();if(!id||!peer){remoteOut.textContent='Informe o ID do outro celular. Aguarde seu próprio ID aparecer primeiro.';return;}conn=peer.connect(id);wire(conn);};
+function fallbackCopy(value){
+ const t=document.createElement('textarea');t.value=value;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}t.remove();return ok;
+}
+document.querySelector('#copy').onclick=async()=>{
+ const id=document.querySelector('#myId').value;
+ if(!id){setPeerStatus('Ainda não há ID. Aguarde o PeerJS conectar ao servidor.');return;}
+ const ok=await copyText(id);setPeerStatus((ok?'ID copiado: ':'Não foi possível copiar automaticamente. ID: ')+id);
+};
+document.querySelector('#copyDiag').onclick=async()=>{
+ const report='ENERGY OPS v29 DIAGNÓSTICO\\n'+diag.textContent+'\\n\\n'+document.querySelector('#peerStatus').textContent+'\\n\\n'+remoteOut.textContent+'\\n\\nMeu ID: '+document.querySelector('#myId').value+'\\nID remoto informado: '+document.querySelector('#remoteId').value+'\\nUserAgent: '+navigator.userAgent;
+ const ok=await copyText(report);setPeerStatus(ok?'Diagnóstico copiado. Cole-o aqui na conversa.':'Falha ao copiar. Selecione e copie manualmente os textos de diagnóstico.');
+};
+function setupPeer(){
+ if(!window.Peer){setPeerStatus('ERRO: biblioteca PeerJS não carregou. Verifique a internet/bloqueador.');return;}
+ setPeerStatus('PeerJS carregado. Conectando ao servidor de sinalização…');
+ try{
+  peer=new Peer(undefined,{host:'0.peerjs.com',port:443,path:'/',secure:true,debug:2});
+  peer.on('open',id=>{document.querySelector('#myId').value=id;setPeerStatus('Servidor PeerJS conectado. Seu ID está disponível para troca.');});
+  peer.on('connection',c=>{setPeerStatus('Outro celular iniciou conexão. Estabelecendo canal…');wire(c);});
+  peer.on('disconnected',()=>{setPeerStatus('Desconectado do servidor PeerJS. Tentando reconectar…');try{peer.reconnect()}catch(e){setPeerStatus('Falha ao reconectar: '+e.message)}});
+  peer.on('close',()=>setPeerStatus('PeerJS encerrado.'));
+  peer.on('error',e=>setPeerStatus('ERRO PEERJS ['+e.type+']: '+e.message));
+ }catch(e){setPeerStatus('ERRO ao iniciar PeerJS: '+e.message);}
+}
+function wire(c){conn=c;c.on('open',()=>{setPeerStatus('Canal de dados conectado com o outro celular.');remoteOut.textContent='Conectado ao outro celular. Aguardando pose…';});c.on('data',d=>{if(d.type==='pose')remoteOut.textContent='OUTRO CELULAR · coordenadas relativas ao marcador\nX: '+fmt(d.x)+' m   Y: '+fmt(d.y)+' m   Z: '+fmt(d.z)+' m\nOrientação quaternion: '+d.q.map(fmt).join(', ')+'\nAtualização: '+new Date(d.at).toLocaleTimeString();});c.on('error',e=>{setPeerStatus('ERRO NO CANAL: '+e.message);});c.on('close',()=>{setPeerStatus('Canal de dados encerrado.');remoteOut.textContent='Conexão encerrada.';});}
+document.querySelector('#connect').onclick=()=>{
+ const id=document.querySelector('#remoteId').value.trim();
+ if(!id){setPeerStatus('ERRO: cole o ID do outro celular.');return;}
+ if(!peer||peer.destroyed){setPeerStatus('ERRO: PeerJS não está ativo. Recarregue a página.');return;}
+ setPeerStatus('Solicitando conexão com '+id+'…');
+ try{conn=peer.connect(id,{reliable:true});wire(conn);conn.on('error',e=>setPeerStatus('ERRO AO CONECTAR: '+e.message));}
+ catch(e){setPeerStatus('ERRO AO INICIAR CONEXÃO: '+e.message);}
+};
 setupPeer();
 function cleanup(){try{renderer?.setAnimationLoop(null)}catch(e){}try{renderer?.dispose()}catch(e){}try{renderer?.domElement.remove()}catch(e){}renderer=null;scene=null;camera=null;markerMesh=null;refSpace=null;session=null;myPose=null;}
 document.querySelector('#start').onclick=async()=>{
