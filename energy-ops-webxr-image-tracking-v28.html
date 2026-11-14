@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ENERGY OPS · WebXR Image Tracking v28</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08111d;color:#e8f4ff;font:15px system-ui,sans-serif;padding:16px}
+main{max-width:620px;margin:auto;position:relative;z-index:1;pointer-events:auto}h1{font-size:21px;margin:4px 0 8px}p{line-height:1.4;color:#b8cadb}
+canvas#target{display:block;width:min(76vw,320px);height:auto;margin:14px auto;background:white;image-rendering:pixelated}
+button{width:100%;padding:15px;margin:7px 0;border:0;border-radius:10px;font-weight:700;font-size:16px;background:#00d9ff;color:#00131b}
+#stop{background:#34485b;color:white}pre{white-space:pre-wrap;word-break:break-word;background:#101f30;padding:12px;border-radius:10px;font-size:12px;min-height:110px}
+.note{font-size:13px}
+</style>
+</head>
+<body><main>
+<h1>ENERGY OPS · TESTE v28</h1>
+<p>Teste isolado do rastreamento nativo WebXR usando o mesmo marcador gerado pelo multiplayer. Não altera o jogo principal nem usa MindAR.</p>
+<p><b>Como testar:</b> abra esta página nos dois celulares. Deixe o marcador abaixo visível na tela do segundo aparelho. No primeiro, pressione INICIAR WEBXR e aponte para o marcador exibido no segundo.</p>
+<canvas id="target" width="512" height="512"></canvas>
+<button id="start">INICIAR WEBXR — MARCADOR ENERGY OPS</button>
+<button id="stop">ENCERRAR TESTE</button>
+<p class="note">O marcador deve aparecer inteiro, sem reflexos. O tamanho físico esperado é 15 × 15 cm. Este teste não altera o index.html.</p>
+<pre id="diag">Aguardando. Abra esta página nos dois celulares.</pre>
+</main>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js';
+const canvas=document.querySelector('#target'),ctx=canvas.getContext('2d',{willReadFrequently:true}),diag=document.querySelector('#diag');
+const MARKER_TEXT='ENERGY-OPS-SHARED-AR-MARKER-V1';
+function drawEnergyOpsMarker(){
+ const N=25,quiet=2,cell=canvas.width/N;
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+ const module=(x,y,color)=>{ctx.fillStyle=color;ctx.fillRect(Math.round((x+quiet)*cell),Math.round((y+quiet)*cell),Math.ceil(cell),Math.ceil(cell));};
+ const finder=(ox,oy)=>{for(let y=0;y<7;y++)for(let x=0;x<7;x++){const edge=x===0||x===6||y===0||y===6,center=x>=2&&x<=4&&y>=2&&y<=4;module(ox+x,oy+y,edge||center?'#050505':'#fff');}};
+ finder(0,0);finder(14,0);finder(0,14);
+ for(let i=8;i<14;i++){module(i,7,i%2?'#050505':'#fff');module(7,i,i%2?'#050505':'#fff');}
+ for(let y=0;y<21;y++)for(let x=0;x<21;x++){
+  const inFinder=(x<7&&y<7)||(x>=14&&y<7)||(x<7&&y>=14),timing=(x===7&&y>=8&&y<14)||(y===7&&x>=8&&x<14),alignment=x>=13&&x<=17&&y>=13&&y<=17;
+  if(inFinder||timing||alignment)continue;
+  const h=(Math.imul(x+1,374761393)^Math.imul(y+3,668265263)^Math.imul((x+1)*(y+3),2246822519))>>>0;
+  if((h^(h>>>13)^(x*y*97))&1)module(x,y,'#050505');
+ }
+ for(let y=13;y<=17;y++)for(let x=13;x<=17;x++){const edge=x===13||x===17||y===13||y===17,center=x===15&&y===15;module(x,y,edge||center?'#050505':'#fff');}
+}
+drawEnergyOpsMarker();
+let session=null,renderer=null,scene=null,camera=null,marker=null,refSpace=null,frames=0,lastState='sem resultado';
+function log(s){diag.textContent=s}
+function cleanup(){try{renderer?.setAnimationLoop(null)}catch(e){}try{renderer?.dispose()}catch(e){}try{renderer?.domElement.remove()}catch(e){}renderer=null;scene=null;camera=null;marker=null;refSpace=null;session=null}
+document.querySelector('#start').addEventListener('click',async()=>{
+ try{
+  if(!navigator.xr)throw new Error('navigator.xr indisponível neste navegador.');
+  if(!navigator.xr.isSessionSupported||!await navigator.xr.isSessionSupported('immersive-ar'))throw new Error('immersive-ar não é suportado neste aparelho/navegador.');
+  const bitmap=await createImageBitmap(canvas);
+  log('Marcador '+MARKER_TEXT+' preparado. Solicitando sessão WebXR image-tracking…');
+  session=await navigator.xr.requestSession('immersive-ar',{
+   requiredFeatures:['image-tracking'],
+   optionalFeatures:['local-floor','dom-overlay'],
+   trackedImages:[{image:bitmap,widthInMeters:0.15}],
+   domOverlay:{root:document.body}
+  });
+  log('Sessão aceita. Recursos ativos: '+(session.enabledFeatures?[...session.enabledFeatures].join(', '):'API não informa enabledFeatures'));
+  renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
+  renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local');renderer.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none';document.body.appendChild(renderer.domElement);
+  scene=new THREE.Scene();camera=new THREE.PerspectiveCamera();
+  marker=new THREE.Group();scene.add(marker);
+  const plane=new THREE.Mesh(new THREE.PlaneGeometry(.15,.15),new THREE.MeshBasicMaterial({color:0x00eaff,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false}));
+  marker.add(plane);
+  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(.15,.15)),new THREE.LineBasicMaterial({color:0x00eaff}));
+  edges.position.z=.002;marker.add(edges);
+  await renderer.xr.setSession(session);refSpace=renderer.xr.getReferenceSpace();
+  frames=0;
+  renderer.setAnimationLoop((time,frame)=>{
+   if(!frame)return;frames++;
+   const results=frame.getImageTrackingResults?frame.getImageTrackingResults():[];
+   let details='Marcador: '+MARKER_TEXT+'\nFrames XR: '+frames+'\nResultados de imagem: '+results.length;
+   if(results.length){
+    const r=results[0],pose=frame.getPose(r.imageSpace,refSpace);
+    lastState=r.trackingState||'estado não informado';
+    details+='\nEstado: '+lastState+'\nÍndice do alvo: '+r.index;
+    if(pose){
+     marker.matrix.fromArray(pose.transform.matrix);marker.matrixAutoUpdate=false;marker.visible=true;
+     const p=pose.transform.position;details+='\nPose do marcador (m): X '+p.x.toFixed(3)+' · Y '+p.y.toFixed(3)+' · Z '+p.z.toFixed(3);
+    }else{marker.visible=false;details+='\nPose indisponível neste frame'}
+   }else{marker.visible=false;details+='\nAguardando o marcador ENERGY OPS na câmera'}
+   log(details+'\nÚltimo estado: '+lastState+'\nFeature image-tracking: aceita pela sessão');
+   renderer.render(scene,camera);
+  });
+  session.addEventListener('end',()=>{cleanup();log('Sessão encerrada. Último estado: '+lastState)});
+ }catch(e){cleanup();log('FALHA AO INICIAR IMAGE TRACKING\n'+(e.name||'Erro')+': '+e.message+'\n\nSe a mensagem mencionar feature não suportada, este aparelho/navegador não oferece image-tracking nativo nesta configuração.')}
+});
+document.querySelector('#stop').addEventListener('click',async()=>{try{if(session)await session.end();else cleanup()}catch(e){cleanup()}});
+</script></body></html>
