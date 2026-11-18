@@ -17,7 +17,8 @@ small{color:#9bb1c6}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 <p><b>Preparação:</b> use um terceiro celular ou uma impressão para exibir o marcador. Os dois aparelhos de teste devem enxergar o mesmo marcador ao mesmo tempo.</p>
 <canvas id="target" width="512" height="512"></canvas>
 <div class="status"><div class="tile"><b>WEBXR</b><span id="xrState" class="warn">PARADO</span></div><div class="tile"><b>MARCADOR</b><span id="trackState" class="warn">NÃO DETECTADO</span></div><div class="tile"><b>PEERJS</b><span id="peerState" class="warn">CONECTANDO</span></div><div class="tile"><b>POSE REMOTA</b><span id="remoteState" class="warn">SEM DADOS</span></div></div>
-<div class="distanceTile"><b>DISTÂNCIA ENTRE OS CELULARES</b><strong id="distanceValue">-- m</strong><small id="distanceHint">Aguardando duas poses válidas</small></div>\n<button id="start">INICIAR WEBXR IMAGE TRACKING</button>
+<div class="distanceTile"><b>DISTÂNCIA ENTRE OS CELULARES</b><strong id="distanceValue">-- m</strong><small id="distanceHint">Aguardando duas poses válidas</small></div>
+<button id="start">INICIAR WEBXR IMAGE TRACKING</button>
 <p><b>ID DESTE CELULAR</b></p><input id="myId" readonly placeholder="Aguardando conexão com servidor…">
 <div class="row"><button id="copy">COPIAR MEU ID</button><button id="connect">CONECTAR AO OUTRO</button></div>
 <input id="remoteId" placeholder="Cole aqui o ID do outro celular">
@@ -49,7 +50,8 @@ const stateEl=id=>document.getElementById(id);
 function paintState(id,value,kind){const el=stateEl(id);if(el){el.textContent=value;el.className=kind||'warn';}}
 function refreshStates(){paintState('xrState',xrActive?'ATIVO':'PARADO',xrActive?'good':'warn');paintState('trackState',trackStatus,trackStatus==='TRACKING'?'good':trackStatus==='EMULADO'?'warn':'bad');paintState('peerState',peerStatus,peerStatus==='CONECTADO'?'good':'warn');paintState('remoteState',remoteStatus,remoteStatus==='RECEBENDO'?'good':'warn');}
 function statsText(){if(!poseSamples.length)return 'Sem amostras de pose.';return ['x','y','z'].map(k=>{const a=poseSamples.map(p=>p[k]);return k.toUpperCase()+' min/máx: '+fmt(Math.min(...a))+' / '+fmt(Math.max(...a))+' m';}).join('\\n')+'\\nAmostras/3s: '+poseSamples.length;}
-const fmt=n=>Number(n).toFixed(3);\nfunction updateDistance(){const value=document.querySelector('#distanceValue'),hint=document.querySelector('#distanceHint');if(!value||!hint)return;if(!localPosition||!remotePoseData||Date.now()-lastRemoteAt>2500){value.textContent='-- m';hint.textContent='Aguardando duas poses válidas e recentes';if(distanceLine)distanceLine.visible=false;return;}const a=localPosition,b=new THREE.Vector3(remotePoseData.x,remotePoseData.y,remotePoseData.z),d=a.distanceTo(b);value.textContent=fmt(d)+' m';hint.textContent='Distância entre as posições relativas ao mesmo marcador';if(distanceLine){distanceLine.geometry.setFromPoints([a,b]);distanceLine.visible=true;}}
+const fmt=n=>Number(n).toFixed(3);
+function updateDistance(){const value=document.querySelector('#distanceValue'),hint=document.querySelector('#distanceHint');if(!value||!hint)return;if(!localPosition||!remotePoseData||Date.now()-lastRemoteAt>2500){value.textContent='-- m';hint.textContent='Aguardando duas poses válidas e recentes';if(distanceLine)distanceLine.visible=false;return;}const a=localPosition,b=new THREE.Vector3(remotePoseData.x,remotePoseData.y,remotePoseData.z),d=a.distanceTo(b);value.textContent=fmt(d)+' m';hint.textContent='Distância entre as posições relativas ao mesmo marcador';if(distanceLine){distanceLine.geometry.setFromPoints([a,b]);distanceLine.visible=true;}}
 function log(s){diag.textContent=s}
 function makeAvatar(color){
  const g=new THREE.Group();
