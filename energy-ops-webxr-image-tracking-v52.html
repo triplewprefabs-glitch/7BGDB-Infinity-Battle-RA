@@ -171,17 +171,19 @@ document.querySelector('#start').onclick=async()=>{
     trackStatus='TRACKING · MARCADOR';markerMesh.visible=true;
     if(mp){markerMatrixRef.fromArray(mp.transform.matrix);markerMesh.matrix.copy(markerMatrixRef);markerMesh.matrixAutoUpdate=false;markerMatrixValid=true;markerMesh.visible=true;}
     if(mp&&vp&&vp.views&&vp.views.length&&!vp.emulatedPosition){
+     const hadPreviousPose=localAvatar.visible;const wasMarkerLost=markerWasLost;
      trackedStableFrames++;markerRecoveryFrames=trackedStableFrames;viewerRecoveredFrames=0;recoveryState=trackedStableFrames>=5?'MARCADOR RECUPERADO · REFERENCIAL CONFIRMADO':'MARCADOR RECUPERADO · VALIDANDO ESTABILIDADE';
      const viewerMatrix=new THREE.Matrix4().fromArray(vp.transform.matrix);
      const relative=markerMatrixRef.clone().invert().multiply(viewerMatrix);
      const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),scale=new THREE.Vector3();
      relative.decompose(pos,quat,scale);
+     if(wasMarkerLost&&hadPreviousPose){lastCorrectionMeters=localAvatar.position.distanceTo(pos);const qdot=Math.min(1,Math.abs(localAvatar.quaternion.dot(quat)));lastCorrectionDegrees=2*Math.acos(qdot)*180/Math.PI;lastCorrectionAt=Date.now();reacquisitionCount++;}
+     markerWasLost=false;
      myPose={x:pos.x,y:pos.y,z:pos.z,q:[quat.x,quat.y,quat.z,quat.w]};
      localPoseQuality='CONFIRMADA';localPosition=pos.clone();localPoseAt=Date.now();localPoseValid=true;
-     localAvatar.visible=true;
+     localAvatar.visible=true;applyAvatarPose(localAvatar,pos,quat,wasMarkerLost&&hadPreviousPose?900:0);
      if(trackedStableFrames>=5)setCombatEligibility(true);
      setAvatarCombatAppearance(localAvatar,localCombatEligible);updateDistance();
-     localAvatar.position.copy(pos);localAvatar.quaternion.copy(quat);
      poseSamples.push({x:pos.x,y:pos.y,z:pos.z,t:Date.now()});poseSamples=poseSamples.filter(p=>Date.now()-p.t<=3000);
      if(time-lastSend>100){sendPose();lastSend=time;}
      status='MARCADOR TRACKED · índice '+r.index+'\\nPOSE CONFIRMADA RELATIVA AO MARCADOR (m)\\nX: '+fmt(pos.x)+' · Y: '+fmt(pos.y)+' · Z: '+fmt(pos.z)+'\\nQuaternion: '+[quat.x,quat.y,quat.z,quat.w].map(fmt).join(', ')+'\\n'+statsText();
@@ -206,6 +208,7 @@ document.querySelector('#start').onclick=async()=>{
     status=vp&&vp.emulatedPosition?'POSE DA CÂMERA EMULADA PELO RUNTIME. ÚLTIMA POSIÇÃO CONGELADA.':'POSE DE CÂMERA INDISPONÍVEL. ÚLTIMA POSIÇÃO CONGELADA; aguardando recuperação do tracking.';
    }
    if(lastRemoteAt&&Date.now()-lastRemoteAt>2500){remoteStatus='POSE CONGELADA';updateDistance();}if(lastHeartbeatAt&&Date.now()-lastHeartbeatAt>2200){remoteCombatEligible=false;}
+   animateAvatarPose(localAvatar,performance.now());animateAvatarPose(remoteAvatar,performance.now());
    refreshStates();
    log('WEBXR · RECUPERAÇÃO ESPACIAL v52\\n'+linkDiagnostics()+'\\nFrames XR: '+frames+' · frames diagnóstico: '+rawFrameCount+'\\nVisibilidade da sessão: '+(session?.visibilityState||'indisponível')+'\\nMarcador: '+trackStatus+'\\nviewerPose: '+(rawViewerPresent?'PRESENTE':'AUSENTE')+' · emulatedPosition: '+(rawViewerEmulated===null?'n/a':rawViewerEmulated?'TRUE':'FALSE')+'\\nPose bruta local (m): '+(rawViewerPosition?[fmt(rawViewerPosition.x),fmt(rawViewerPosition.y),fmt(rawViewerPosition.z)].join(' · '):'indisponível')+'\\nVariação desde frame anterior: '+fmt(rawDeltaPosition*1000)+' mm · '+fmt(rawDeltaAngle)+'°\\nDeslocamento desde início: '+fmt(rawTotalPosition)+' m · giro acumulado desde início: '+fmt(rawTotalAngle)+'°\\nIntervalo entre frames: '+rawFrameGap+' ms · idade da última viewerPose: '+(lastRawViewerAt?nowRaw-lastRawViewerAt:'n/a')+' ms\\nPredictedDisplayTime: '+(rawPredictedDisplayTime??'n/a')+'\\n'+status+'\\n\\nQualidade enviada: '+localPoseQuality+'\\nCombate local: '+(localCombatEligible?'LIBERADO':'BLOQUEADO')+' · combate remoto informado pelo outro aparelho: '+(remoteCombatEligible?'LIBERADO':'BLOQUEADO')+'\\nPose remota recebida: '+remotePoseQuality+' · tracking remoto: '+(remoteHeartbeatTracking||'não informado')+'\\nVariação zero pode significar celular parado OU pose congelada; faça movimento deliberado para distinguir.');
    renderer.render(scene,camera);
