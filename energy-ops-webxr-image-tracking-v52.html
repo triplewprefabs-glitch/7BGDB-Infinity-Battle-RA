@@ -189,7 +189,7 @@ document.querySelector('#start').onclick=async()=>{
      status='MARCADOR TRACKED · índice '+r.index+'\\nPOSE CONFIRMADA RELATIVA AO MARCADOR (m)\\nX: '+fmt(pos.x)+' · Y: '+fmt(pos.y)+' · Z: '+fmt(pos.z)+'\\nQuaternion: '+[quat.x,quat.y,quat.z,quat.w].map(fmt).join(', ')+'\\n'+statsText();
     }else{trackedStableFrames=0;setCombatEligibility(false);status='Marcador reconhecido, mas pose de câmera indisponível.';}
    }else if(markerMatrixValid&&vp&&vp.views&&vp.views.length&&!vp.emulatedPosition){
-    trackedStableFrames=0;markerRecoveryFrames=0;recoveryState=viewerRecoveredFrames>0?'POSE RECUPERADA · ESTIMADA · AGUARDANDO MARCADOR':'SEM MARCADOR · POSE ESTIMADA';setCombatEligibility(false);
+    markerWasLost=true;trackedStableFrames=0;markerRecoveryFrames=0;recoveryState=viewerRecoveredFrames>0?'POSE RECUPERADA · ESTIMADA · AGUARDANDO MARCADOR':'SEM MARCADOR · POSE ESTIMADA';setCombatEligibility(false);
     const viewerMatrix=new THREE.Matrix4().fromArray(vp.transform.matrix);
     const relative=markerMatrixRef.clone().invert().multiply(viewerMatrix);
     const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),scale=new THREE.Vector3();
@@ -202,7 +202,7 @@ document.querySelector('#start').onclick=async()=>{
     if(time-lastSend>100){sendPose();lastSend=time;}
     status='MARCADOR FORA DE VISTA · POSE CONTINUA PELO REFERENCIAL ESPACIAL WEBXR\\nQUALIDADE: ESTIMADA · PODE ACUMULAR DERIVA\\nX: '+fmt(pos.x)+' · Y: '+fmt(pos.y)+' · Z: '+fmt(pos.z)+'\\nQuaternion: '+[quat.x,quat.y,quat.z,quat.w].map(fmt).join(', ')+'\\nCombate permanece bloqueado.';
    }else{
-    trackedStableFrames=0;markerRecoveryFrames=0;setCombatEligibility(false);localPoseValid=false;localPoseQuality='CONGELADA';myPose=null;recoveryState='POSE INDISPONÍVEL · AVATAR CONGELADO';
+    markerWasLost=true;trackedStableFrames=0;markerRecoveryFrames=0;setCombatEligibility(false);localPoseValid=false;localPoseQuality='CONGELADA';myPose=null;recoveryState='POSE INDISPONÍVEL · AVATAR CONGELADO';
     trackStatus=(emulated||(vp&&vp.emulatedPosition))?'POSE EMULADA · CONGELADA':'SEM REFERÊNCIA · POSE CONGELADA';
     updateDistance();markerMesh.visible=markerMatrixValid;
     status=vp&&vp.emulatedPosition?'POSE DA CÂMERA EMULADA PELO RUNTIME. ÚLTIMA POSIÇÃO CONGELADA.':'POSE DE CÂMERA INDISPONÍVEL. ÚLTIMA POSIÇÃO CONGELADA; aguardando recuperação do tracking.';
