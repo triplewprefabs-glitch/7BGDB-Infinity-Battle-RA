@@ -60,7 +60,8 @@ function linkDiagnostics(){
 }
 function sendProbe(){if(!conn?.open)return;const seq=++probeSequence,at=Date.now();pendingProbes.set(seq,at);txProbeCount++;while(pendingProbes.size>20)pendingProbes.delete(pendingProbes.keys().next().value);try{conn.send({type:'probe',seq,at});}catch(e){}}
 probeTimer=setInterval(sendProbe,1000);
-let recoveryState='AGUARDANDO INÍCIO',viewerMissingSince=0,viewerMissingFrames=0,viewerRecoveredFrames=0,markerRecoveryFrames=0;\nlet viewerStableFrames=0,markerStableFrames=0,markerCandidateMatrix=new THREE.Matrix4(),lastRecoveryReason='Nenhuma recuperação registrada';
+let recoveryState='AGUARDANDO INÍCIO',viewerMissingSince=0,viewerMissingFrames=0,viewerRecoveredFrames=0,markerRecoveryFrames=0;
+let viewerStableFrames=0,markerStableFrames=0,markerCandidateMatrix=new THREE.Matrix4(),lastRecoveryReason='Nenhuma recuperação registrada';
 const stateEl=id=>document.getElementById(id);
 function paintState(id,value,kind){const el=stateEl(id);if(el){el.textContent=value;el.className=kind||'warn';}}
 function refreshStates(){paintState('xrState',xrActive?'ATIVO':'PARADO',xrActive?'good':'warn');paintState('trackState',trackStatus,trackStatus==='TRACKING · MARCADOR'?'good':trackStatus.includes('ESTIMADA')||trackStatus.includes('CONGELADA')?'warn':'bad');paintState('peerState',peerStatus,peerStatus==='CONECTADO'?'good':'warn');paintState('remoteState',remoteStatus,remoteStatus==='RECEBENDO'?'good':remoteStatus.includes('ESTIMADA')||remoteStatus==='POSE CONGELADA'?'warn':'bad');paintState('localCombat',localCombatEligible?'ATIVO · PODE ATIRAR E RECEBER DANO':'BLOQUEADO · SEM COMBATE',localCombatEligible?'good':'bad');paintState('remoteCombat',remoteCombatEligible?'ATIVO · ALVO VÁLIDO':'BLOQUEADO · NÃO É ALVO',remoteCombatEligible?'good':'bad');}
