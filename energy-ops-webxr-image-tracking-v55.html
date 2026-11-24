@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ENERGY OPS · Diagnóstico de desempenho v55</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08111d;color:#e8f4ff;font:15px system-ui,sans-serif;padding:14px;padding-bottom:100px}
+main{max-width:680px;margin:auto}h1{font-size:21px;margin:4px 0 8px}p{line-height:1.4;color:#b8cadb}
+canvas#target{display:block;width:min(58vw,230px);height:auto;margin:10px auto;background:white;image-rendering:pixelated}
+button,input{width:100%;padding:13px;margin:5px 0;border:0;border-radius:9px;font:inherit}button{font-weight:700;background:#00d9ff;color:#00131b;position:relative;z-index:20}#copyDiag{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));width:calc(100% - 24px);z-index:2147483000;margin:0;box-shadow:0 3px 18px #000b;border:2px solid #fff;font-size:16px}#stop{position:relative;z-index:20}#stop{background:#34485b;color:white}
+input{background:#14283b;color:white;border:1px solid #49647c}pre{white-space:pre-wrap;word-break:break-word;background:#101f30;padding:12px;border-radius:10px;font-size:12px;min-height:110px}
+small{color:#9bb1c6}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ .status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.tile{background:#14283b;border:1px solid #29445c;border-radius:9px;padding:10px}.tile b{display:block;font-size:11px;color:#9bb1c6;margin-bottom:4px}.tile span{font-weight:700}.good{color:#5cf0a5}.warn{color:#ffd166}.bad{color:#ff7777}.distanceTile{background:#102d38;border:1px solid #00a9bd;border-radius:10px;padding:12px;margin:10px 0;text-align:center}.distanceTile b{display:block;font-size:11px;color:#9bb1c6;margin-bottom:4px}.distanceTile strong{font-size:25px;color:#54eaff;font-variant-numeric:tabular-nums} .distanceTile small{display:block;margin-top:3px}.combatTile{background:#241f19;border:1px solid #8b6a32;border-radius:10px;padding:10px;margin:8px 0}.combatTile b{display:block;font-size:11px;color:#c6b18b;margin-bottom:5px}.combatTile strong{font-size:14px}.combatTile p{font-size:12px;margin:5px 0 0;color:#cbbda5}</style></head>
+<body><main>
+<h1>ENERGY OPS · DIAGNÓSTICO DE DESEMPENHO v55</h1>
+<p>Teste WebXR de rastreamento espacial 360°. Em Android compatível, o Chrome pode usar o ARCore como provedor interno do WebXR. Ciano = este celular; laranja = outro celular. Quando o marcador sai da câmera, o teste tenta continuar a pose pelo referencial espacial já estabelecido.</p>
+<p><b>Preparação:</b> calibre os dois aparelhos vendo o mesmo marcador. Depois vire um aparelho de costas para ele e caminhe devagar. A pose estimada durante a ausência do marcador é experimental e pode acumular deriva.</p>
+<canvas id="target" width="512" height="512"></canvas>
+<div class="status"><div class="tile"><b>WEBXR</b><span id="xrState" class="warn">PARADO</span></div><div class="tile"><b>MARCADOR</b><span id="trackState" class="warn">NÃO DETECTADO</span></div><div class="tile"><b>PEERJS</b><span id="peerState" class="warn">CONECTANDO</span></div><div class="tile"><b>POSE REMOTA</b><span id="remoteState" class="warn">SEM DADOS</span></div></div>
+<div class="status"><div class="tile"><b>COMBATE LOCAL</b><span id="localCombat" class="bad">BLOQUEADO</span></div><div class="tile"><b>COMBATE REMOTO</b><span id="remoteCombat" class="bad">SEM CONFIRMAÇÃO</span></div></div><div class="combatTile"><b>SEGURANÇA DO TESTE v47</b><strong>A pose pode continuar estimada sem marcador; o combate permanece bloqueado.</strong><p>Esta etapa mede estabilidade espacial em 360°. Não há tiros, colisão ou dano implementados. Não considerar pose estimada como posição competitiva validada.</p></div><div class="distanceTile"><b>DISTÂNCIA ENTRE OS CELULARES</b><strong id="distanceValue">-- m</strong><small id="distanceHint">Aguardando duas poses válidas</small></div>
+<button id="start">INICIAR WEBXR · TESTE 360°</button>
+<p><b>ID DESTE CELULAR</b></p><input id="myId" readonly placeholder="Aguardando conexão com servidor…">
+<div class="row"><button id="copy">COPIAR MEU ID</button><button id="connect">CONECTAR AO OUTRO</button></div>
+<input id="remoteId" placeholder="Cole aqui o ID do outro celular">
+<button id="copyDiag">COPIAR DIAGNÓSTICO</button>
+<small>Teste em Android/Chrome compatível com WebXR. Os eixos representam a última pose conhecida do marcador; ciano = local; laranja = remoto. Troquem os IDs e conectem. A pose estimada fora de vista é experimental; o botão copia o diagnóstico.</small>
+<button id="stop">ENCERRAR TESTE</button>
+<pre id="diag">Aguardando início. O teste exige navegador com WebXR image-tracking.</pre>
+<pre id="peerStatus">CONEXÃO: inicializando PeerJS…</pre><pre id="remote">OUTRO CELULAR: ainda não conectado.</pre>
+</main>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js';
+const canvas=document.querySelector('#target'),ctx=canvas.getContext('2d'),diag=document.querySelector('#diag'),remoteOut=document.querySelector('#remote');
+const MARKER_TEXT='ENERGY-OPS-SHARED-AR-MARKER-V1';
+function drawMarker(){
+ const N=25,quiet=2,cell=canvas.width/N;ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+ const mod=(x,y,color)=>{ctx.fillStyle=color;ctx.fillRect(Math.round((x+quiet)*cell),Math.round((y+quiet)*cell),Math.ceil(cell),Math.ceil(cell));};
+ const finder=(ox,oy)=>{for(let y=0;y<7;y++)for(let x=0;x<7;x++){const e=x===0||x===6||y===0||y===6,c=x>=2&&x<=4&&y>=2&&y<=4;mod(ox+x,oy+y,e||c?'#050505':'#fff');}};
+ finder(0,0);finder(14,0);finder(0,14);
+ for(let i=8;i<14;i++){mod(i,7,i%2?'#050505':'#fff');mod(7,i,i%2?'#050505':'#fff');}
+ for(let y=0;y<21;y++)for(let x=0;x<21;x++){const f=(x<7&&y<7)||(x>=14&&y<7)||(x<7&&y>=14),t=(x===7&&y>=8&&y<14)||(y===7&&x>=8&&x<14),a=x>=13&&x<=17&&y>=13&&y<=17;if(f||t||a)continue;const h=(Math.imul(x+1,374761393)^Math.imul(y+3,668265263)^Math.imul((x+1)*(y+3),2246822519))>>>0;if((h^(h>>>13)^(x*y*97))&1)mod(x,y,'#050505');}
+ for(let y=13;y<=17;y++)for(let x=13;x<=17;x++){const e=x===13||x===17||y===13||y===17,c=x===15&&y===15;mod(x,y,e||c?'#050505':'#fff');}
+}
+
+let session=null,renderer=null,scene=null,camera=null,markerMesh=null,refSpace=null,peer=null,conn=null,frames=0,lastSend=0,myPose=null,localAvatar=null,remoteAvatar=null;
+let markerMatrixRef=new THREE.Matrix4(),localPoseQuality='SEM REFERÊNCIA';
+let xrActive=false,trackStatus='NÃO DETECTADO',peerStatus='CONECTANDO',remoteStatus='SEM DADOS',lastRemoteAt=0,poseSamples=[],remotePoseData=null,localPosition=null,distanceLine=null,distanceMidpoint=null,markerMatrixValid=false,localPoseAt=0,localPoseValid=false;
+let localCombatEligible=false,remoteCombatEligible=false,trackedStableFrames=0,lastHeartbeatAt=0,heartbeatTimer=null;
+let rawViewerPresent=false,rawViewerEmulated=null,rawViewerPosition=null,rawViewerQuaternion=null,previousRawPosition=null,previousRawQuaternion=null,baselineRawPosition=null,baselineRawQuaternion=null,lastRawViewerAt=0,lastXRFrameAt=0,rawDeltaPosition=0,rawDeltaAngle=0,rawFrameGap=0,rawFrameCount=0,rawPredictedDisplayTime=null,rawTotalPosition=0,rawTotalAngle=0;
+let remoteHeartbeatEligible=false,remoteHeartbeatTracking='',remotePoseQuality='SEM POSE';
+let probeTimer=null,probeSequence=0,lastAnyDataAt=0,lastProbeAckAt=0,lastProbeRtt=null;
+let txProbeCount=0,rxProbeCount=0,rxPoseCount=0,rxHeartbeatCount=0,txPoseCount=0;
+const pendingProbes=new Map();
+let lastUiRefreshAt=0,lastDiagUpdateAt=0,lastDistanceUiAt=0;
+function linkDiagnostics(){
+ const pc=conn?.peerConnection||null,dc=conn?.dataChannel||null,now=Date.now();
+ return ['CANAL DE DADOS: '+(conn?(conn.open?'OPEN':'CLOSED'):'AUSENTE'),'WebRTC connectionState: '+(pc?.connectionState||'n/a'),'ICE connectionState: '+(pc?.iceConnectionState||'n/a'),'ICE gatheringState: '+(pc?.iceGatheringState||'n/a'),'SignalingState: '+(pc?.signalingState||'n/a'),'DataChannel readyState: '+(dc?.readyState||'n/a'),'DataChannel bufferedAmount: '+(dc?.bufferedAmount??'n/a'),'Pacotes pose enviados/recebidos: '+txPoseCount+'/'+rxPoseCount,'Heartbeats recebidos: '+rxHeartbeatCount,'Probes enviados/recebidos: '+txProbeCount+'/'+rxProbeCount,'Último dado recebido: '+(lastAnyDataAt?((now-lastAnyDataAt)+' ms atrás'):'nunca'),'Último ACK de probe: '+(lastProbeAckAt?((now-lastProbeAckAt)+' ms atrás'):'nunca'),'RTT do canal: '+(lastProbeRtt===null?'n/a':lastProbeRtt+' ms')].join('\\n');
+}
+function sendProbe(){if(!conn?.open)return;const seq=++probeSequence,at=Date.now();pendingProbes.set(seq,at);txProbeCount++;while(pendingProbes.size>20)pendingProbes.delete(pendingProbes.keys().next().value);try{conn.send({type:'probe',seq,at});}catch(e){}}
+probeTimer=setInterval(sendProbe,1000);
+let recoveryState='AGUARDANDO INÍCIO',viewerMissingSince=0,viewerMissingFrames=0,viewerRecoveredFrames=0,markerRecoveryFrames=0;\nlet viewerStableFrames=0,markerStableFrames=0,markerCandidateMatrix=new THREE.Matrix4(),lastRecoveryReason='Nenhuma recuperação registrada';
+const stateEl=id=>document.getElementById(id);
+function paintState(id,value,kind){const el=stateEl(id);if(el){el.textContent=value;el.className=kind||'warn';}}
+function refreshStates(){paintState('xrState',xrActive?'ATIVO':'PARADO',xrActive?'good':'warn');paintState('trackState',trackStatus,trackStatus==='TRACKING · MARCADOR'?'good':trackStatus.includes('ESTIMADA')||trackStatus.includes('CONGELADA')?'warn':'bad');paintState('peerState',peerStatus,peerStatus==='CONECTADO'?'good':'warn');paintState('remoteState',remoteStatus,remoteStatus==='RECEBENDO'?'good':remoteStatus.includes('ESTIMADA')||remoteStatus==='POSE CONGELADA'?'warn':'bad');paintState('localCombat',localCombatEligible?'ATIVO · PODE ATIRAR E RECEBER DANO':'BLOQUEADO · SEM COMBATE',localCombatEligible?'good':'bad');paintState('remoteCombat',remoteCombatEligible?'ATIVO · ALVO VÁLIDO':'BLOQUEADO · NÃO É ALVO',remoteCombatEligible?'good':'bad');}
+function statsText(){if(!poseSamples.length)return 'Sem amostras de pose.';return ['x','y','z'].map(k=>{const a=poseSamples.map(p=>p[k]);return k.toUpperCase()+' min/máx: '+fmt(Math.min(...a))+' / '+fmt(Math.max(...a))+' m';}).join('\\n')+'\\nAmostras/3s: '+poseSamples.length;}
+const fmt=n=>Number(n).toFixed(3);
+function updateDistance(){const uiNow=Date.now();if(uiNow-lastDistanceUiAt<250)return;lastDistanceUiAt=uiNow;const value=document.querySelector('#distanceValue'),hint=document.querySelector('#distanceHint');if(!value||!hint)return;if(!localPosition||!localPoseValid||Date.now()-localPoseAt>2500||!remotePoseData||Date.now()-lastRemoteAt>2500){value.textContent='-- m';hint.textContent='Aguardando duas poses válidas e recentes';if(distanceLine)distanceLine.visible=false;if(distanceMidpoint)distanceMidpoint.visible=false;return;}const a=localPosition,b=new THREE.Vector3(remotePoseData.x,remotePoseData.y,remotePoseData.z),d=a.distanceTo(b);value.textContent=fmt(d)+' m';hint.textContent='Distância entre as posições relativas ao mesmo marcador';if(distanceLine){distanceLine.geometry.setFromPoints([a,b]);distanceLine.visible=true;}if(distanceMidpoint){distanceMidpoint.position.copy(a).add(b).multiplyScalar(.5);distanceMidpoint.visible=true;}}
+function log(s){diag.textContent=s}
+function makeAvatar(color){
+ const g=new THREE.Group();
+ const shell=new THREE.Mesh(new THREE.BoxGeometry(.038,.072,.009),new THREE.MeshBasicMaterial({color}));
+ const screen=new THREE.Mesh(new THREE.PlaneGeometry(.031,.059),new THREE.MeshBasicMaterial({color:0x102536,side:THREE.DoubleSide}));
+ screen.position.z=-.0052;
+ const lens=new THREE.Mesh(new THREE.CircleGeometry(.003,12),new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide}));
+ lens.position.set(0,.025,-.0058);
+ const home=new THREE.Mesh(new THREE.CircleGeometry(.002,12),new THREE.MeshBasicMaterial({color:0x9bb1c6,side:THREE.DoubleSide}));
+ home.position.set(0,-.027,-.0058);
+ g.add(shell,screen,lens,home);
+ return g;
+}
+function sendPose(){if(conn&&conn.open&&myPose){conn.send({type:'pose',...myPose,quality:localPoseQuality,at:Date.now()});txPoseCount++;}}
+function setCombatEligibility(allowed){const next=!!allowed;if(next===localCombatEligible)return;localCombatEligible=next;refreshStates();if(conn&&conn.open)conn.send({type:'combat',eligible:localCombatEligible,at:Date.now()});}
+function sendHeartbeat(){if(conn&&conn.open)conn.send({type:'heartbeat',eligible:localCombatEligible,tracking:trackStatus,quality:localPoseQuality,recovery:recoveryState,at:Date.now()});if(lastHeartbeatAt&&Date.now()-lastHeartbeatAt>2200){remoteHeartbeatEligible=false;remoteCombatEligible=false;refreshStates();}}
+function updateRemoteCombat(){const fresh=lastRemoteAt>0&&Date.now()-lastRemoteAt<1500;const heartbeatFresh=lastHeartbeatAt>0&&Date.now()-lastHeartbeatAt<2200;remoteCombatEligible=!!(heartbeatFresh&&remoteHeartbeatEligible&&remoteHeartbeatTracking==='TRACKING · MARCADOR'&&remotePoseQuality==='CONFIRMADA'&&fresh);setAvatarCombatAppearance(remoteAvatar,remoteCombatEligible);refreshStates();}
+function setAvatarCombatAppearance(avatar,eligible){if(!avatar)return;avatar.traverse(o=>{if(o.material){o.material.transparent=!eligible;o.material.opacity=eligible?1:.32;}});}
+function setPeerStatus(s){document.querySelector('#peerStatus').textContent=s;peerStatus=(conn&&conn.open)?'CONECTADO':(s.startsWith('ERRO')?'ERRO':'DESCONECTADO');refreshStates();}
+function setPeerMessage(s){document.querySelector('#peerStatus').textContent=s;}
+function copyText(value){
+ if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(value).then(()=>true).catch(()=>fallbackCopy(value));
+ return Promise.resolve(fallbackCopy(value));
+}
+function fallbackCopy(value){
+ const t=document.createElement('textarea');t.value=value;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}t.remove();return ok;
+}
+document.querySelector('#copy').onclick=async()=>{
+ const id=document.querySelector('#myId').value;
+ if(!id){setPeerStatus('Ainda não há ID. Aguarde o PeerJS conectar ao servidor.');return;}
+ const ok=await copyText(id);setPeerMessage((ok?'ID copiado: ':'Não foi possível copiar automaticamente. ID: ')+id);
+};
+document.querySelector('#copyDiag').onclick=async()=>{
+ const report='ENERGY OPS v55 DIAGNÓSTICO\\n'+linkDiagnostics()+'\\nWebXR: '+(xrActive?'ATIVO':'PARADO')+'\\nMarcador: '+trackStatus+'\\nPeerJS: '+peerStatus+'\\nPose remota: '+remoteStatus+'\\n'+diag.textContent+'\\n'+statsText()+'\\n'+document.querySelector('#peerStatus').textContent+'\\n'+remoteOut.textContent+'\\nCombate local: '+(localCombatEligible?'LIBERADO':'BLOQUEADO')+'\\nCombate remoto: '+(remoteCombatEligible?'LIBERADO':'BLOQUEADO')+'\\nMeu ID: '+document.querySelector('#myId').value+'\\nID remoto: '+document.querySelector('#remoteId').value+'\\nUserAgent: '+navigator.userAgent;
+ const ok=await copyText(report);setPeerMessage(ok?'Diagnóstico copiado. Cole-o aqui na conversa.':'Falha ao copiar. Selecione e copie manualmente os textos de diagnóstico.');
+};
+function setupPeer(){
+ if(!window.Peer){setPeerStatus('ERRO: biblioteca PeerJS não carregou. Verifique a internet/bloqueador.');return;}
+ setPeerStatus('PeerJS carregado. Conectando ao servidor de sinalização…');
+ try{
+  peer=new Peer(undefined,{host:'0.peerjs.com',port:443,path:'/',secure:true,debug:2});
+  peer.on('open',id=>{document.querySelector('#myId').value=id;setPeerStatus('Servidor PeerJS conectado. Seu ID está disponível para troca.');});
+  peer.on('connection',c=>{setPeerStatus('Outro celular iniciou conexão. Estabelecendo canal…');wire(c);});
+  peer.on('disconnected',()=>{setPeerStatus('Desconectado do servidor PeerJS. Tentando reconectar…');try{peer.reconnect()}catch(e){setPeerStatus('Falha ao reconectar: '+e.message)}});
+  peer.on('close',()=>setPeerStatus('PeerJS encerrado.'));
+  peer.on('error',e=>setPeerStatus('ERRO PEERJS ['+e.type+']: '+e.message));
+ }catch(e){setPeerStatus('ERRO ao iniciar PeerJS: '+e.message);}
+}
+drawMarker();
+setupPeer();
+heartbeatTimer=setInterval(sendHeartbeat,500);
+function wire(c){conn=c;c.on('open',()=>{setPeerStatus('Canal de dados conectado com o outro celular.');remoteOut.textContent='Conectado ao outro celular. Aguardando pose…';sendHeartbeat();sendProbe();});c.on('data',d=>{lastAnyDataAt=Date.now();if(d.type==='probe'){rxProbeCount++;try{if(conn?.open)conn.send({type:'probe_ack',seq:d.seq,echoAt:d.at,at:Date.now()});}catch(e){}}else if(d.type==='probe_ack'){const sent=pendingProbes.get(d.seq);if(sent!==undefined){lastProbeRtt=Date.now()-sent;lastProbeAckAt=Date.now();pendingProbes.delete(d.seq);}}if(d.type==='heartbeat'||d.type==='combat'){if(d.type==='heartbeat')rxHeartbeatCount++;lastHeartbeatAt=Date.now();remoteHeartbeatEligible=!!d.eligible;if(d.tracking)remoteHeartbeatTracking=d.tracking;if(d.quality)remotePoseQuality=d.quality;updateRemoteCombat();}if(d.type==='pose'){rxPoseCount++;lastRemoteAt=Date.now();remotePoseData={x:d.x,y:d.y,z:d.z};remotePoseQuality=d.quality||'DESCONHECIDA';remoteStatus=d.quality==='ESTIMADA'?'POSE ESTIMADA':'RECEBENDO';updateRemoteCombat();if(remoteAvatar){remoteAvatar.visible=true;remoteAvatar.position.set(d.x,d.y,d.z);remoteAvatar.quaternion.set(d.q[0],d.q[1],d.q[2],d.q[3]);setAvatarCombatAppearance(remoteAvatar,remoteCombatEligible);}refreshStates();updateDistance();remoteOut.textContent='OUTRO CELULAR · coordenadas relativas ao marcador\\nX: '+fmt(d.x)+' m   Y: '+fmt(d.y)+' m   Z: '+fmt(d.z)+' m\\nOrientação quaternion: '+d.q.map(fmt).join(', ')+'\\nAtualização: '+new Date(d.at).toLocaleTimeString()+'\\nIdade do dado: '+Math.max(0,Date.now()-d.at)+' ms';}});c.on('error',e=>{setPeerStatus('ERRO NO CANAL: '+e.message);});c.on('close',()=>{setPeerStatus('Canal de dados encerrado.');remoteStatus='SEM DADOS';remotePoseData=null;remoteCombatEligible=false;remoteHeartbeatEligible=false;remoteHeartbeatTracking='';remotePoseQuality='SEM POSE';lastHeartbeatAt=0;lastProbeRtt=null;pendingProbes.clear();refreshStates();updateDistance();remoteOut.textContent='Conexão encerrada.';});}
+document.querySelector('#connect').onclick=()=>{
+ const id=document.querySelector('#remoteId').value.trim();
+ if(!id){setPeerStatus('ERRO: cole o ID do outro celular.');return;}
+ if(!peer||peer.destroyed){setPeerStatus('ERRO: PeerJS não está ativo. Recarregue a página.');return;}
+ setPeerStatus('Solicitando conexão com '+id+'…');
+ try{conn=peer.connect(id,{reliable:true});wire(conn);conn.on('error',e=>setPeerStatus('ERRO AO CONECTAR: '+e.message));}
+ catch(e){setPeerStatus('ERRO AO INICIAR CONEXÃO: '+e.message);}
+};
+
+function cleanup(){setCombatEligibility(false);trackedStableFrames=0;recoveryState='SESSÃO ENCERRADA';viewerMissingSince=0;viewerMissingFrames=0;viewerRecoveredFrames=0;markerRecoveryFrames=0;try{renderer?.setAnimationLoop(null)}catch(e){}try{renderer?.dispose()}catch(e){}try{renderer?.domElement.remove()}catch(e){}renderer=null;scene=null;camera=null;markerMesh=null;refSpace=null;session=null;myPose=null;distanceLine=null;distanceMidpoint=null;markerMatrixValid=false;markerMatrixRef.identity();localPoseValid=false;localPoseQuality='SEM REFERÊNCIA';xrActive=false;trackStatus='NÃO DETECTADO';poseSamples=[];refreshStates();}
+document.querySelector('#start').onclick=async()=>{
+ try{
+  if(!navigator.xr||!await navigator.xr.isSessionSupported('immersive-ar'))throw new Error('Este navegador não oferece immersive-ar.');
+  const bitmap=await createImageBitmap(canvas);
+  session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['image-tracking'],optionalFeatures:['local-floor','dom-overlay'],trackedImages:[{image:bitmap,widthInMeters:.15}],domOverlay:{root:document.body}});
+  renderer=new THREE.WebGLRenderer({alpha:true,antialias:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25));renderer.setSize(innerWidth,innerHeight);renderer.xr.enabled=true;renderer.xr.setFramebufferScaleFactor(.85);renderer.xr.setReferenceSpaceType('local');renderer.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none';document.body.appendChild(renderer.domElement);
+  scene=new THREE.Scene();camera=new THREE.PerspectiveCamera();markerMesh=new THREE.Group();scene.add(markerMesh);localAvatar=makeAvatar(0x20d9ff);remoteAvatar=makeAvatar(0xffa52e);localAvatar.visible=false;remoteAvatar.visible=false;markerMesh.add(new THREE.AxesHelper(.18));const grid=new THREE.GridHelper(1,10,0x35a9c8,0x426174);grid.rotation.x=Math.PI/2;grid.position.z=-.002;markerMesh.add(grid);const border=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-.5,-.5,0),new THREE.Vector3(.5,-.5,0),new THREE.Vector3(.5,.5,0),new THREE.Vector3(-.5,.5,0)]),new THREE.LineBasicMaterial({color:0x5cff9d,transparent:true,opacity:.8}));border.position.z=-.001;markerMesh.add(border);markerMesh.add(localAvatar);markerMesh.add(remoteAvatar);const origin=new THREE.Mesh(new THREE.SphereGeometry(.007,16,12),new THREE.MeshBasicMaterial({color:0x5cff9d}));origin.position.set(0,0,0);markerMesh.add(origin);distanceLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.9}));distanceLine.visible=false;markerMesh.add(distanceLine);distanceMidpoint=new THREE.Mesh(new THREE.SphereGeometry(.0045,12,10),new THREE.MeshBasicMaterial({color:0xffe45c}));distanceMidpoint.visible=false;markerMesh.add(distanceMidpoint);
+  const plane=new THREE.Mesh(new THREE.PlaneGeometry(.15,.15),new THREE.MeshBasicMaterial({color:0x00eaff,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false}));markerMesh.add(plane);
+  await renderer.xr.setSession(session);refSpace=renderer.xr.getReferenceSpace();frames=0;xrActive=true;trackStatus='PROCURANDO';recoveryState='CALIBRANDO REFERENCIAL';viewerMissingSince=0;viewerMissingFrames=0;viewerRecoveredFrames=0;markerRecoveryFrames=0;markerMatrixValid=false;markerMatrixRef.identity();localPoseValid=false;localPoseQuality='SEM REFERÊNCIA';trackedStableFrames=0;setCombatEligibility(false);refreshStates();
+  renderer.setAnimationLoop((time,frame)=>{
+   if(!frame)return;frames++;
+   const results=frame.getImageTrackingResults?frame.getImageTrackingResults():[];
+   const tracked=results.find(r=>r.trackingState==='tracked');
+   const emulated=results.find(r=>r.trackingState==='emulated');
+   const vp=frame.getViewerPose(refSpace);
+   const nowRaw=Date.now();
+   rawFrameGap=lastXRFrameAt?nowRaw-lastXRFrameAt:0;lastXRFrameAt=nowRaw;rawFrameCount++;
+   rawViewerPresent=!!(vp&&vp.transform);rawViewerEmulated=vp?!!vp.emulatedPosition:null;
+   if(!rawViewerPresent||rawViewerEmulated){viewerStableFrames=0;viewerMissingFrames++;viewerRecoveredFrames=0;if(!viewerMissingSince)viewerMissingSince=nowRaw;recoveryState=rawViewerPresent?'POSE EMULADA · COMBATE BLOQUEADO':'POSE AUSENTE · COMBATE BLOQUEADO';}else{viewerStableFrames++;if(viewerMissingSince){viewerRecoveredFrames++;recoveryState='POSE RECUPERADA · VALIDANDO '+viewerStableFrames+'/5';lastRecoveryReason='viewerPose voltou; aguardando 5 frames válidos';}viewerMissingSince=0;}
+   rawViewerPosition=null;rawViewerQuaternion=null;rawDeltaPosition=0;rawDeltaAngle=0;
+   if(rawViewerPresent){
+    const tr=vp.transform;
+    rawViewerPosition={x:tr.position.x,y:tr.position.y,z:tr.position.z};
+    rawViewerQuaternion={x:tr.orientation.x,y:tr.orientation.y,z:tr.orientation.z,w:tr.orientation.w};
+    if(!baselineRawPosition){baselineRawPosition={...rawViewerPosition};baselineRawQuaternion={...rawViewerQuaternion};}
+    rawTotalPosition=Math.hypot(rawViewerPosition.x-baselineRawPosition.x,rawViewerPosition.y-baselineRawPosition.y,rawViewerPosition.z-baselineRawPosition.z);
+    const baseDot=Math.min(1,Math.abs(rawViewerQuaternion.x*baselineRawQuaternion.x+rawViewerQuaternion.y*baselineRawQuaternion.y+rawViewerQuaternion.z*baselineRawQuaternion.z+rawViewerQuaternion.w*baselineRawQuaternion.w));
+    rawTotalAngle=2*Math.acos(baseDot)*180/Math.PI;
+    if(previousRawPosition&&previousRawQuaternion){
+     const dx=rawViewerPosition.x-previousRawPosition.x,dy=rawViewerPosition.y-previousRawPosition.y,dz=rawViewerPosition.z-previousRawPosition.z;
+     rawDeltaPosition=Math.hypot(dx,dy,dz);
+     const dot=Math.min(1,Math.abs(rawViewerQuaternion.x*previousRawQuaternion.x+rawViewerQuaternion.y*previousRawQuaternion.y+rawViewerQuaternion.z*previousRawQuaternion.z+rawViewerQuaternion.w*previousRawQuaternion.w));
+     rawDeltaAngle=2*Math.acos(dot)*180/Math.PI;
+    }
+    previousRawPosition={...rawViewerPosition};previousRawQuaternion={...rawViewerQuaternion};lastRawViewerAt=nowRaw;
+   }
+   rawPredictedDisplayTime=frame.predictedDisplayTime??null;
+   let status='Marcador: não detectado';myPose=null;
+   if(tracked){
+    const r=tracked,mp=frame.getPose(r.imageSpace,refSpace);
+    trackStatus='TRACKING · MARCADOR';
+    if(mp&&vp&&vp.views&&vp.views.length&&!vp.emulatedPosition){
+     markerCandidateMatrix.fromArray(mp.transform.matrix);
+     markerStableFrames++;markerRecoveryFrames=markerStableFrames;
+     if(markerStableFrames>=5){
+      markerMatrixRef.copy(markerCandidateMatrix);markerMesh.matrix.copy(markerMatrixRef);markerMesh.matrixAutoUpdate=false;markerMatrixValid=true;markerMesh.visible=true;
+      recoveryState='MARCADOR RECUPERADO · 5/5 FRAMES';lastRecoveryReason='marcador e viewerPose estáveis; referência atualizada';
+      const viewerMatrix=new THREE.Matrix4().fromArray(vp.transform.matrix);
+      const relative=markerMatrixRef.clone().invert().multiply(viewerMatrix);
+      const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),scale=new THREE.Vector3();
+      relative.decompose(pos,quat,scale);
+      myPose={x:pos.x,y:pos.y,z:pos.z,q:[quat.x,quat.y,quat.z,quat.w]};
+      localPoseQuality='CONFIRMADA';localPosition=pos.clone();localPoseAt=Date.now();localPoseValid=true;
+      localAvatar.visible=true;
+      if(markerStableFrames>=5&&viewerStableFrames>=5)setCombatEligibility(true);
+      setAvatarCombatAppearance(localAvatar,localCombatEligible);updateDistance();
+      localAvatar.position.copy(pos);localAvatar.quaternion.copy(quat);
+      poseSamples.push({x:pos.x,y:pos.y,z:pos.z,t:Date.now()});poseSamples=poseSamples.filter(p=>Date.now()-p.t<=3000);
+      if(time-lastSend>100){sendPose();lastSend=time;}
+      status='MARCADOR TRACKED · índice '+r.index+'\\nREFERÊNCIA VALIDADA APÓS 5 FRAMES\\nPOSE CONFIRMADA RELATIVA AO MARCADOR (m)\\nX: '+fmt(pos.x)+' · Y: '+fmt(pos.y)+' · Z: '+fmt(pos.z)+'\\nQuaternion: '+[quat.x,quat.y,quat.z,quat.w].map(fmt).join(', ')+'\\n'+statsText();
+     }else{
+      setCombatEligibility(false);localPoseValid=false;localPoseQuality='RECUPERANDO';myPose=null;markerMesh.visible=markerMatrixValid;
+      recoveryState='VALIDANDO MARCADOR '+markerStableFrames+'/5';lastRecoveryReason='aguardando 5 frames consecutivos de marcador + viewerPose';
+      status='MARCADOR DETECTADO · VALIDANDO ESTABILIDADE '+markerStableFrames+'/5\\nAvatar mantido na última posição; combate bloqueado durante a validação.';
+     }
+    }else{
+     markerStableFrames=0;markerRecoveryFrames=0;setCombatEligibility(false);localPoseValid=false;localPoseQuality='CONGELADA';myPose=null;
+     recoveryState='MARCADOR SEM POSE VÁLIDA';lastRecoveryReason='marcador detectado, mas pose da câmera inválida';
+     status='MARCADOR RECONHECIDO, MAS A POSE DA CÂMERA NÃO É VÁLIDA.\\nÚltima posição mantida; combate bloqueado.';
+    }
+   }else if(markerMatrixValid&&vp&&vp.views&&vp.views.length&&!vp.emulatedPosition&&viewerStableFrames>=5){
+    markerStableFrames=0;markerRecoveryFrames=0;recoveryState=viewerRecoveredFrames>0?'POSE RECUPERADA · ESTIMADA':'SEM MARCADOR · POSE ESTIMADA';setCombatEligibility(false);
+    const viewerMatrix=new THREE.Matrix4().fromArray(vp.transform.matrix);
+    const relative=markerMatrixRef.clone().invert().multiply(viewerMatrix);
+    const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),scale=new THREE.Vector3();
+    relative.decompose(pos,quat,scale);
+    myPose={x:pos.x,y:pos.y,z:pos.z,q:[quat.x,quat.y,quat.z,quat.w]};
+    localPoseQuality='ESTIMADA';localPosition=pos.clone();localPoseAt=Date.now();localPoseValid=true;
+    localAvatar.visible=true;localAvatar.position.copy(pos);localAvatar.quaternion.copy(quat);
+    setAvatarCombatAppearance(localAvatar,false);markerMesh.visible=true;
+    trackStatus='SEM MARCADOR · POSE ESTIMADA';updateDistance();
+    if(time-lastSend>100){sendPose();lastSend=time;}
+    status='MARCADOR FORA DE VISTA · POSE ESTIMADA ESTÁVEL\\nviewerPose válida por '+viewerStableFrames+' frames consecutivos\\nQUALIDADE: ESTIMADA · PODE ACUMULAR DERIVA\\nX: '+fmt(pos.x)+' · Y: '+fmt(pos.y)+' · Z: '+fmt(pos.z)+'\\nCombate permanece bloqueado.';
+   }else{
+    markerStableFrames=0;markerRecoveryFrames=0;setCombatEligibility(false);localPoseValid=false;localPoseQuality='CONGELADA';myPose=null;recoveryState=rawViewerPresent?'VALIDANDO viewerPose '+viewerStableFrames+'/5':'POSE INDISPONÍVEL · AVATAR CONGELADO';
+    trackStatus=(emulated||(vp&&vp.emulatedPosition))?'POSE EMULADA · CONGELADA':'SEM REFERÊNCIA · POSE CONGELADA';
+    updateDistance();markerMesh.visible=markerMatrixValid;
+    if(localAvatar)setAvatarCombatAppearance(localAvatar,false);
+    status=rawViewerPresent?'viewerPose reapareceu, mas ainda precisa de 5 frames válidos. Última posição congelada.':'POSE DE CÂMERA INDISPONÍVEL. ÚLTIMA POSIÇÃO CONGELADA; aguardando recuperação do tracking.';
+   }
+   if(lastRemoteAt&&Date.now()-lastRemoteAt>2500){remoteStatus='POSE CONGELADA';updateDistance();}if(lastHeartbeatAt&&Date.now()-lastHeartbeatAt>2200){remoteCombatEligible=false;}
+   if(nowRaw-lastUiRefreshAt>=250){lastUiRefreshAt=nowRaw;lastDiagUpdateAt=nowRaw;refreshStates();
+   let avatarVisibilityDiag='AVATAR: sem dados suficientes para calcular posição na câmera';
+   if(vp&&vp.transform&&markerMatrixValid&&remoteAvatar){
+    const remoteWorld=remoteAvatar.position.clone().applyMatrix4(markerMatrixRef);
+    const viewerMatrixNow=new THREE.Matrix4().fromArray(vp.transform.matrix);
+    const remoteCameraLocal=remoteWorld.clone().applyMatrix4(viewerMatrixNow.clone().invert());
+    const remoteDistance=remoteWorld.distanceTo(new THREE.Vector3().setFromMatrixPosition(viewerMatrixNow));
+    avatarVisibilityDiag='AVATAR REMOTO · visible='+remoteAvatar.visible+' · grupo marcador visible='+markerMesh.visible+
+     '\\nPosição no referencial do marcador: '+[fmt(remoteAvatar.position.x),fmt(remoteAvatar.position.y),fmt(remoteAvatar.position.z)].join(' · ')+' m'+
+     '\\nPosição relativa à câmera: X '+fmt(remoteCameraLocal.x)+' · Y '+fmt(remoteCameraLocal.y)+' · Z '+fmt(remoteCameraLocal.z)+' m'+
+     '\\nDistância 3D da câmera: '+fmt(remoteDistance)+' m · '+(remoteCameraLocal.z<0?'À FRENTE DA CÂMERA':'ATRÁS DA CÂMERA')+
+     '\\nIdade da pose remota: '+(lastRemoteAt?nowRaw-lastRemoteAt:'nunca')+' ms · qualidade: '+remotePoseQuality+
+     '\\nAvatar local visible='+!!localAvatar?.visible+' · pose local válida='+localPoseValid;
+   }
+   log('WEBXR · DIAGNÓSTICO DE DESEMPENHO v55\\n'+linkDiagnostics()+'\\nFrames XR: '+frames+' · frames diagnóstico: '+rawFrameCount+'\\nVisibilidade da sessão: '+(session?.visibilityState||'indisponível')+'\\nMarcador: '+trackStatus+'\\nviewerPose: '+(rawViewerPresent?'PRESENTE':'AUSENTE')+' · emulatedPosition: '+(rawViewerEmulated===null?'n/a':rawViewerEmulated?'TRUE':'FALSE')+'\\nPose bruta local (m): '+(rawViewerPosition?[fmt(rawViewerPosition.x),fmt(rawViewerPosition.y),fmt(rawViewerPosition.z)].join(' · '):'indisponível')+'\\nVariação desde frame anterior: '+fmt(rawDeltaPosition*1000)+' mm · '+fmt(rawDeltaAngle)+'°\\nDeslocamento desde início: '+fmt(rawTotalPosition)+' m · giro acumulado desde início: '+fmt(rawTotalAngle)+'°\\nIntervalo entre frames: '+rawFrameGap+' ms · idade da última viewerPose: '+(lastRawViewerAt?nowRaw-lastRawViewerAt:'n/a')+' ms\\nPredictedDisplayTime: '+(rawPredictedDisplayTime??'n/a')+'\\nAtualização do painel: 4 vezes por segundo · último painel: '+(nowRaw-lastDiagUpdateAt)+' ms atrás\\nRecuperação: '+recoveryState+'\\nviewerPose estável: '+viewerStableFrames+'/5 · marcador estável: '+markerStableFrames+'/5\\nÚltimo evento: '+lastRecoveryReason+'\\n'+status+'\\n\\nQualidade enviada: '+localPoseQuality+'\\nCombate local: '+(localCombatEligible?'LIBERADO':'BLOQUEADO')+' · combate remoto informado pelo outro aparelho: '+(remoteCombatEligible?'LIBERADO':'BLOQUEADO')+'\\nPose remota recebida: '+remotePoseQuality+' · tracking remoto: '+(remoteHeartbeatTracking||'não informado')+'\\nVariação zero pode significar celular parado OU pose congelada; faça movimento deliberado para distinguir.\\n\\n'+avatarVisibilityDiag);
+   }
+   renderer.render(scene,camera);
+  });
+  session.addEventListener('end',()=>{cleanup();log('Sessão WebXR encerrada.');});
+ }catch(e){cleanup();log('FALHA: '+(e.name||'Erro')+': '+e.message);}
+};
+document.querySelector('#stop').onclick=async()=>{try{if(session)await session.end();else cleanup();}catch(e){cleanup();}};
+</script></body></html>
