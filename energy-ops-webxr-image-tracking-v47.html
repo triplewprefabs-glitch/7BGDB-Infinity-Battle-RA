@@ -135,7 +135,7 @@ document.querySelector('#start').onclick=async()=>{
     const r=tracked,mp=frame.getPose(r.imageSpace,refSpace);
     trackStatus='TRACKING · MARCADOR';markerMesh.visible=true;
     if(mp){markerMatrixRef.fromArray(mp.transform.matrix);markerMesh.matrix.copy(markerMatrixRef);markerMesh.matrixAutoUpdate=false;markerMatrixValid=true;markerMesh.visible=true;}
-    if(mp&&vp&&vp.views&&vp.views.length){
+    if(mp&&vp&&vp.views&&vp.views.length&&!vp.emulatedPosition){
      trackedStableFrames++;
      const viewerMatrix=new THREE.Matrix4().fromArray(vp.transform.matrix);
      const relative=markerMatrixRef.clone().invert().multiply(viewerMatrix);
@@ -151,7 +151,7 @@ document.querySelector('#start').onclick=async()=>{
      if(time-lastSend>100){sendPose();lastSend=time;}
      status='MARCADOR TRACKED · índice '+r.index+'\\nPOSE CONFIRMADA RELATIVA AO MARCADOR (m)\\nX: '+fmt(pos.x)+' · Y: '+fmt(pos.y)+' · Z: '+fmt(pos.z)+'\\nQuaternion: '+[quat.x,quat.y,quat.z,quat.w].map(fmt).join(', ')+'\\n'+statsText();
     }else{trackedStableFrames=0;setCombatEligibility(false);status='Marcador reconhecido, mas pose de câmera indisponível.';}
-   }else if(markerMatrixValid&&vp&&vp.views&&vp.views.length){
+   }else if(markerMatrixValid&&vp&&vp.views&&vp.views.length&&!vp.emulatedPosition){
     trackedStableFrames=0;setCombatEligibility(false);
     const viewerMatrix=new THREE.Matrix4().fromArray(vp.transform.matrix);
     const relative=markerMatrixRef.clone().invert().multiply(viewerMatrix);
@@ -166,9 +166,9 @@ document.querySelector('#start').onclick=async()=>{
     status='MARCADOR FORA DE VISTA · POSE CONTINUA PELO REFERENCIAL ESPACIAL WEBXR\\nQUALIDADE: ESTIMADA · PODE ACUMULAR DERIVA\\nX: '+fmt(pos.x)+' · Y: '+fmt(pos.y)+' · Z: '+fmt(pos.z)+'\\nQuaternion: '+[quat.x,quat.y,quat.z,quat.w].map(fmt).join(', ')+'\\nCombate permanece bloqueado.';
    }else{
     trackedStableFrames=0;setCombatEligibility(false);localPoseValid=false;localPoseQuality='CONGELADA';myPose=null;
-    trackStatus=emulated?'EMULADO · SEM POSE DE CÂMERA':'SEM REFERÊNCIA · POSE CONGELADA';
+    trackStatus=(emulated||(vp&&vp.emulatedPosition))?'POSE EMULADA · CONGELADA':'SEM REFERÊNCIA · POSE CONGELADA';
     updateDistance();markerMesh.visible=markerMatrixValid;
-    status='POSE DE CÂMERA INDISPONÍVEL. ÚLTIMA POSIÇÃO CONGELADA; aguardando recuperação do tracking.';
+    status=vp&&vp.emulatedPosition?'POSE DA CÂMERA EMULADA PELO RUNTIME. ÚLTIMA POSIÇÃO CONGELADA.':'POSE DE CÂMERA INDISPONÍVEL. ÚLTIMA POSIÇÃO CONGELADA; aguardando recuperação do tracking.';
    }
    if(lastRemoteAt&&Date.now()-lastRemoteAt>2500){remoteStatus='POSE CONGELADA';updateDistance();}if(lastHeartbeatAt&&Date.now()-lastHeartbeatAt>2200){remoteCombatEligible=false;}
    refreshStates();
