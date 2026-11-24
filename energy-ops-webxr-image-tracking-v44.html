@@ -82,7 +82,7 @@ document.querySelector('#copy').onclick=async()=>{
 };
 document.querySelector('#copyDiag').onclick=async()=>{
  const report='ENERGY OPS v44 DIAGNÓSTICO\\nWebXR: '+(xrActive?'ATIVO':'PARADO')+'\\nMarcador: '+trackStatus+'\\nQualidade da pose local: '+poseQuality+'\\nPeerJS: '+peerStatus+'\\nPose remota: '+remoteStatus+'\\n'+diag.textContent+'\\n'+statsText()+'\\n'+document.querySelector('#peerStatus').textContent+'\\n'+remoteOut.textContent+'\\nMeu ID: '+document.querySelector('#myId').value+'\\nID remoto: '+document.querySelector('#remoteId').value+'\\nUserAgent: '+navigator.userAgent;
- const ok=await copyText(report);setPeerMessage(ok?'Diagnóstico v43 copiado. Cole-o aqui na conversa.':'Falha ao copiar. Selecione e copie manualmente os textos de diagnóstico.');
+ const ok=await copyText(report);setPeerMessage(ok?'Diagnóstico v44 copiado. Cole-o aqui na conversa.':'Falha ao copiar. Selecione e copie manualmente os textos de diagnóstico.');
 };
 function setupPeer(){
  if(!window.Peer){setPeerStatus('ERRO: biblioteca PeerJS não carregou. Verifique a internet/bloqueador.');return;}
