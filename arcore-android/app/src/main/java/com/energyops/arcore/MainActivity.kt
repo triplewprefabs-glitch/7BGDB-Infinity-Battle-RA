@@ -1,6 +1,8 @@
 package com.energyops.arcore
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.Gravity
 import android.view.Surface
@@ -72,6 +74,12 @@ class MainActivity : Activity(), GLSurfaceView.Renderer {
 
     override fun onResume() {
         super.onResume()
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), 1001)
+            status.set("Permissão da câmera necessária para iniciar o ARCore.")
+            updateStatusOnUi()
+            return
+        }
         try {
             val installStatus = ArCoreApk.getInstance()
                 .requestInstall(this, !installRequested)
@@ -83,12 +91,13 @@ class MainActivity : Activity(), GLSurfaceView.Renderer {
             }
 
             if (arSession == null) {
-                arSession = Session(this)
-                val config = Config(arSession)
+                val createdSession = Session(this)
+                arSession = createdSession
+                val config = Config(createdSession)
                 config.updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
                 config.planeFindingMode = Config.PlaneFindingMode.DISABLED
                 config.lightEstimationMode = Config.LightEstimationMode.DISABLED
-                arSession?.configure(config)
+                createdSession.configure(config)
             }
             arSession?.resume()
             glView.onResume()
@@ -100,6 +109,22 @@ class MainActivity : Activity(), GLSurfaceView.Renderer {
         } catch (e: Exception) {
             status.set("FALHA AO INICIAR ARCORE: ${e.message ?: e.javaClass.simpleName}")
             updateStatusOnUi()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                onResume()
+            } else {
+                status.set("PERMISSÃO NEGADA: autorize o uso da câmera nas configurações do Android.")
+                updateStatusOnUi()
+            }
         }
     }
 
